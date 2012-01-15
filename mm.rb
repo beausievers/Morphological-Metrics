@@ -290,25 +290,26 @@ module MM
   # Create a multimetric. MM p. 342.
   #
   # Create a metric which combines other metrics.
-  # Each item in the metrics array should be an array
-  # containing 3 values: [metric, config, weight]
+  # Each item in the metrics array should be a hash
+  # with 3 keys: :metric, :config, :weight
+  #
   # If weights are omitted, simple averaging is assumed. 
   # If configs are omitted, the default is used. 
   #
-  # Warning: this is kind of broken right now!
-  #
-  # Todo: figure out how this way of using config objects does or doesn't
-  #       fit with the use of AI functions like set_at_distance()
-  # => Solution: the configs passed in as part of the metrics array should become
-  #    new defaults for the returned lambda.
+  # If the symbol :none is used as a config, the config
+  # argument is omitted in the call to the metric. (E.g. if 
+  # the metric being used is itself a multimetric.)
   #
   def self.get_multimetric(metrics)
-    ->(m, n, cfg = self::DistConfig.new) {
+    ->(m, n) {  # A config argument would be meaningless.
       top = 0
       bottom = 0
-      metrics.each do |metric, config = self::DistConfig.new, weight = 1|
-        #config = self::DistConfig.new if config.nil?
-        top += metric.call(m, n, config) * weight
+      metrics.each do |metric_hash| #|metric, config = self::DistConfig.new, weight = 1|
+        metric = metric_hash[:metric]
+        config = metric_hash[:config] || self::DistConfig.new
+        weight = metric_hash[:weight] || 1
+        
+        top += (config == :none) ? (metric.call(m, n) * weight) : (metric.call(m, n, config) * weight)
         bottom += weight
       end
       top.to_f / bottom.to_f
@@ -611,7 +612,7 @@ module MM
     set_size     = opts[:set_size]     || 10
     max_failures = opts[:max_failures] || 1000
     
-    if config.nil?
+    if config == :none
       climb_func = ->(test_point) {
         (dist_func.call(v1, test_point) - d).abs
       }
