@@ -10,12 +10,12 @@ module MM
     attr_accessor :scale, :order, :inter_delta, :intra_delta, :int_func, :ic_calc, :mod
 
     def initialize(opts = {})
-      @scale       = opts[:scale]       || "absolute"
+      @scale       = opts[:scale]       || :absolute
       @order       = opts[:order]       || 1
-      @inter_delta = opts[:inter_delta] || MM::DELTA_FUNCTIONS['abs_diff']
-      @intra_delta = opts[:intra_delta] || MM::DELTA_FUNCTIONS['abs_diff']
-      @int_func    = opts[:int_func]    || MM::INTERVAL_FUNCTIONS['plus_one']
-      @ic_calc     = opts[:ic_calc]     || MM::IC_FUNCTIONS['mod']
+      @inter_delta = opts[:inter_delta] || MM::DELTA_FUNCTIONS[:abs_diff]
+      @intra_delta = opts[:intra_delta] || MM::DELTA_FUNCTIONS[:abs_diff]
+      @int_func    = opts[:int_func]    || MM::INTERVAL_FUNCTIONS[:plus_one]
+      @ic_calc     = opts[:ic_calc]     || MM::IC_FUNCTIONS[:mod]
       @mod         = opts[:mod]         || 12
     end
   end
@@ -39,7 +39,7 @@ module MM
   #
   @@amm = ->(m, n, config = self::DistConfig.new) do
     result = (m - n).abs.sum 
-    result = result / m.total.to_f if scale == "absolute"
+    result = result / m.total.to_f if scale == :absolute
     result
   end
   
@@ -47,16 +47,16 @@ module MM
   # Magnitude Metrics
   #
   
-  def self.get_mag_metric(style = "combinatorial", post_proc)
+  def self.get_mag_metric(style = :combinatorial, post_proc)
     ->(m, n, config = self::DistConfig.new) {
-      if style == "combinatorial"
+      if style == :combinatorial
         m_combo = self.ordered_2_combinations(m.to_a)
         n_combo = self.ordered_2_combinations(n.to_a)
         m_diff = NArray.to_na(m_combo.map { |a,b| config.intra_delta.call(a,b) })
         n_diff = NArray.to_na(n_combo.map { |a,b| config.intra_delta.call(a,b) })
         #puts "m_combo: #{m_combo.to_a.to_s}"
         #puts "n_combo: #{n_combo.to_a.to_s}"
-      elsif style == "linear"
+      elsif style == :linear
         m_combo, n_combo = nil, nil
         m_diff = self.vector_delta(m, config.order, config.intra_delta, config.int_func)
         n_diff = self.vector_delta(n, config.order, config.intra_delta, config.int_func)
@@ -67,13 +67,13 @@ module MM
 
       scale_factor, inner_scale_m, inner_scale_n = 1, 1, 1
 
-      if config.scale == "absolute"
+      if config.scale == :absolute
         the_max = [m_diff.max, n_diff.max].max 
         scale_factor = the_max unless the_max == 0
-      elsif config.scale == "relative"
+      elsif config.scale == :relative
         inner_scale_m = m_diff.max unless m_diff.max == 0
         inner_scale_n = n_diff.max unless n_diff.max == 0
-      elsif config.scale == "maxint_squared"
+      elsif config.scale == :maxint_squared
         root_of_squared_differences = ((m_diff - n_diff)**2)**0.5
         scale_factor = root_of_squared_differences.max unless root_of_squared_differences.max == 0
       end
@@ -97,7 +97,7 @@ module MM
   #   considers augmented/diminished scalings of vectors to be equivalent. E.g. 
   #   [0,2,6,12] and [0,1,3,6] have distance 0.
   #
-  @@olm = self.get_mag_metric("linear",
+  @@olm = self.get_mag_metric(:linear,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
             inner_scale_m, inner_scale_n, scale_factor) {
       inter_diff = inter_delta.call(m_diff.to_f / inner_scale_m, n_diff.to_f / inner_scale_n)
@@ -111,7 +111,7 @@ module MM
   #
   # The difference between average deltas for each vector.
   # 
-  @@ulm = self.get_mag_metric("linear",
+  @@ulm = self.get_mag_metric(:linear,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
             inner_scale_m, inner_scale_n, scale_factor) {
       inter_delta.call(m_diff.sum.to_f / (m_diff.total * inner_scale_m), 
@@ -122,7 +122,7 @@ module MM
   #
   # Ordered Combinatorial Magnitude, MM p. 323
   #
-  @@ocm = self.get_mag_metric("combinatorial",
+  @@ocm = self.get_mag_metric(:combinatorial,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
             inner_scale_m, inner_scale_n, scale_factor) {
       sum = inter_delta.call(m_diff.to_f / inner_scale_m, 
@@ -134,7 +134,7 @@ module MM
   #
   # Unordered Combinatorial Magnitude, MM p. 325
   #
-  @@ucm = self.get_mag_metric("combinatorial",
+  @@ucm = self.get_mag_metric(:combinatorial,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
             inner_scale_m, inner_scale_n, scale_factor) {
     #puts "total m: #{(m_diff.to_f / inner_scale_m).sum}"
@@ -188,7 +188,7 @@ module MM
     sgn_n = self.sgn(n, config.order, config.intra_delta, config.int_func)
     
     scale_factor = 1
-    scale_factor = (m.total - 1) if config.scale == "absolute"
+    scale_factor = (m.total - 1) if config.scale == :absolute
 
     sgn_m.ne(sgn_n).sum.to_f / scale_factor
   end
@@ -384,8 +384,8 @@ module MM
     end
     delta = delta.to_proc if delta.class == Symbol
 
-    delta = MM::DELTA_FUNCTIONS['abs_diff'] if delta.nil?
-    int_func = MM::INTERVAL_FUNCTIONS['plus_one'] if int_func.nil?
+    delta = MM::DELTA_FUNCTIONS[:abs_diff] if delta.nil?
+    int_func = MM::INTERVAL_FUNCTIONS[:plus_one] if int_func.nil?
 
     compare = int_func.call(m)
     # If the compare vector is shorter than m, we assume
@@ -482,24 +482,24 @@ module MM
   # TODO: Refactor above to use hashes like this instead of get_ functions
   #
   DELTA_FUNCTIONS = Hash[
-    'abs_diff' => lambda { |a,b| (a - b).abs },         # Default: abs of difference
-    'raw_diff' => :-.to_proc,
-    'ratio' => lambda { |a, b| a / b.to_f },
-    'squared_difference' => lambda { |a, b| (a - b)**2 },
-    'root_of_squared_difference' => lambda { |a, b| ((a - b)**2)**0.5 }
+    :abs_diff => lambda { |a,b| (a - b).abs },         # Default: abs of difference
+    :raw_diff => :-.to_proc,
+    :ratio => lambda { |a, b| a / b.to_f },
+    :squared_difference => lambda { |a, b| (a - b)**2 },
+    :root_of_squared_difference => lambda { |a, b| ((a - b)**2)**0.5 }
   ]
 
   INTERVAL_FUNCTIONS = Hash[
-    'plus_one' => lambda do |m|
+    :plus_one => lambda do |m|
       m[1...m.total]          # Default: as in the 1st discrete derivative; use all but the 1st element
     end,
-    'mean' => lambda do |m|
+    :mean => lambda do |m|
       NArray.float(m.total).fill!(m.mean)
     end
   ]
   
   IC_FUNCTIONS = Hash[
-    'mod' => lambda do |interval, mod = 12|
+    :mod => lambda do |interval, mod = 12|
       self.interval_class(interval, mod)   # Default: Get the mod 12 interval class.
     end
   ]
@@ -602,8 +602,8 @@ module MM
     v1           = opts[:v1]
     d            = opts[:d]
     dist_func    = opts[:dist_func]
-    
     config       = opts[:config]       || self::DistConfig.new
+    
     search_func  = opts[:search_func]  || @@hill_climb_stochastic
     search_epsilon    = opts[:search_epsilon]    || 0.01
     search_min_step   = opts[:search_min_step]   || 1.0
@@ -620,6 +620,7 @@ module MM
         (dist_func.call(v1, test_point, config) - d).abs
       }
     end
+    
     set = []
     failures = 0
     while set.size < set_size && failures < max_failures
