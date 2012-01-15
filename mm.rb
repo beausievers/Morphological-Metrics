@@ -300,8 +300,16 @@ module MM
   # containing 3 values: [metric, config, weight]
   # If weights are omitted, simple averaging is assumed. 
   # If configs are omitted, the default is used. 
+  #
+  # Warning: this is kind of broken right now!
+  #
+  # Todo: figure out how this way of using config objects does or doesn't
+  #       fit with the use of AI functions like set_at_distance()
+  # => Solution: the configs passed in as part of the metrics array should become
+  #    new defaults for the returned lambda.
+  #
   def self.get_multimetric(metrics)
-    ->(m, n) {
+    ->(m, n, cfg = self::DistConfig.new) {
       top = 0
       bottom = 0
       metrics.each do |metric, config = self::DistConfig.new, weight = 1|
@@ -596,7 +604,14 @@ module MM
   # Points on the surface of an n-sphere, but these points will 
   # not necessarily be uniformly distributed. Also grossly inefficient.
   #
-  def self.set_at_distance(v1, d, dist_func, config = self::DistConfig.new, search_func = @@hill_climb_stochastic, set_size = 10, max_failures = 1000)
+  def self.set_at_distance(opts = {})
+    v1           = opts[:v1]
+    d            = opts[:d]
+    dist_func    = opts[:dist_func]
+    config       = opts[:config]       || self::DistConfig.new
+    search_func  = opts[:search_func]  || @@hill_climb_stochastic
+    set_size     = opts[:set_size]     || 10
+    max_failures = opts[:max_failures] || 1000
     if config.nil?
       climb_func = ->(test_point) {
         (dist_func.call(v1, test_point) - d).abs
@@ -609,7 +624,7 @@ module MM
     set = []
     failures = 0
     while set.size < set_size && failures < max_failures
-      candidate = search_func.call(climb_func, v1, 0.01, 0.01, 1.0)
+      candidate = search_func.call(climb_func, v1, 0.01, 1.0, 4.0)
       if !set.include?(candidate)
         set << candidate
       else
