@@ -486,7 +486,7 @@ module MM
     :raw_diff => :-.to_proc,
     :ratio => lambda { |a, b| a / b.to_f },
     :squared_difference => lambda { |a, b| (a - b)**2 },
-    :root_of_squared_difference => lambda { |a, b| ((a - b)**2)**0.5 }
+    :root_of_squared_difference => lambda { |a, b| ((a - b)**2)**0.5 },
     :huron => ->(a, b) {
       #              U       m2/M7   M2/m7  m3/M6  M3/m6  P4/P5   A4/d5
       huronTable = [ 0,   -1.428, -0.582, 0.594, 0.386, 1.240, -0.453 ]
