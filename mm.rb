@@ -9,7 +9,7 @@ module MM
   class DistConfig
     attr_accessor :scale, :order, :inter_delta, :intra_delta, :int_func, :ic_calc, :mod
 
-    def initialize(opts)
+    def initialize(opts = {})
       @scale       = opts[:scale]       || "absolute"
       @order       = opts[:order]       || 1
       @inter_delta = opts[:inter_delta] || MM::DELTA_FUNCTIONS['abs_diff']
