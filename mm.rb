@@ -296,9 +296,8 @@ module MM
   # If weights are omitted, simple averaging is assumed. 
   # If configs are omitted, the default is used. 
   #
-  # If the symbol :none is used as a config, the config
-  # argument is omitted in the call to the metric. (E.g. if 
-  # the metric being used is itself a multimetric.)
+  # If the symbol :none is used as a config, the config argument is omitted in the 
+  # call to the metric. (E.g. if the metric being used is itself a multimetric.)
   #
   def self.get_multimetric(metrics)
     ->(m, n) {  # A config argument would be meaningless.
@@ -488,6 +487,13 @@ module MM
     :ratio => lambda { |a, b| a / b.to_f },
     :squared_difference => lambda { |a, b| (a - b)**2 },
     :root_of_squared_difference => lambda { |a, b| ((a - b)**2)**0.5 }
+    :huron => ->(a, b) {
+      #              U       m2/M7   M2/m7  m3/M6  M3/m6  P4/P5   A4/d5
+      huronTable = [ 0,   -1.428, -0.582, 0.594, 0.386, 1.240, -0.453 ]
+      output = (a.to_i - b.to_i).abs
+      return huronTable[MM.interval_class(output, 12)] if output.class == Fixnum
+      output.collect { |x| huronTable[MM.interval_class(x, 12)] }
+    }
   ]
 
   INTERVAL_FUNCTIONS = Hash[
