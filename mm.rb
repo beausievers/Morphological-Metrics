@@ -9,20 +9,14 @@ module MM
   class DistConfig
     attr_accessor :scale, :order, :inter_delta, :intra_delta, :int_func, :ic_calc, :mod
 
-    def initialize(scale = "absolute", order = 1, inter_delta = nil, intra_delta = nil, int_func = nil, 
-                   ic_calc = nil, mod = 12)
-      @scale = scale
-      @order = order
-      @inter_delta = inter_delta
-      @intra_delta = intra_delta
-      @int_func = int_func
-      @ic_calc = ic_calc
-      @mod = mod
-
-      @inter_delta = MM::DELTA_FUNCTIONS['abs_diff'] if inter_delta.nil?
-      @intra_delta = MM::DELTA_FUNCTIONS['abs_diff'] if intra_delta.nil?
-      @int_func = MM::INTERVAL_FUNCTIONS['plus_one'] if int_func.nil?
-      @ic_calc = MM::IC_FUNCTIONS['mod'] if ic_calc.nil?
+    def initialize(opts)
+      @scale       = opts[:scale]       || "absolute"
+      @order       = opts[:order]       || 1
+      @inter_delta = opts[:inter_delta] || MM::DELTA_FUNCTIONS['abs_diff']
+      @intra_delta = opts[:intra_delta] || MM::DELTA_FUNCTIONS['abs_diff']
+      @int_func    = opts[:int_func]    || MM::INTERVAL_FUNCTIONS['plus_one']
+      @ic_calc     = opts[:ic_calc]     || MM::IC_FUNCTIONS['mod']
+      @mod         = opts[:mod]         || 12
     end
   end
 
@@ -608,10 +602,15 @@ module MM
     v1           = opts[:v1]
     d            = opts[:d]
     dist_func    = opts[:dist_func]
+    
     config       = opts[:config]       || self::DistConfig.new
     search_func  = opts[:search_func]  || @@hill_climb_stochastic
+    search_epsilon    = opts[:search_epsilon]    || 0.01
+    search_min_step   = opts[:search_min_step]   || 1.0
+    search_start_step = opts[:search_start_step] || 4.0
     set_size     = opts[:set_size]     || 10
     max_failures = opts[:max_failures] || 1000
+    
     if config.nil?
       climb_func = ->(test_point) {
         (dist_func.call(v1, test_point) - d).abs
@@ -624,7 +623,7 @@ module MM
     set = []
     failures = 0
     while set.size < set_size && failures < max_failures
-      candidate = search_func.call(climb_func, v1, 0.01, 1.0, 4.0)
+      candidate = search_func.call(climb_func, v1, search_epsilon, search_min_step, search_start_step)
       if !set.include?(candidate)
         set << candidate
       else
