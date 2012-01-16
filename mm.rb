@@ -479,7 +479,6 @@ module MM
 
   #
   # Alternative delta functions. MM p. 310.
-  # TODO: Refactor above to use hashes like this instead of get_ functions
   #
   DELTA_FUNCTIONS = Hash[
     :abs_diff => lambda { |a,b| (a - b).abs },         # Default: abs of difference
