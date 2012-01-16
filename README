@@ -1,0 +1,8 @@
+A Ruby implementation of metrics described in Larry Polansky's article
+Morphological Metrics, available here:
+
+http://eamusic.dartmouth.edu/~larry/mutationsFAQ.html
+
+Plus some lucky bonus AI stuff.
+
+In development. This is so pre-alpha. Don't even use this.
