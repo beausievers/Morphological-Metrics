@@ -670,7 +670,18 @@ module MM
   # Some other possibilities: make euclidean_tightness a function or array
   # E.g. it could be tight at the beginning and end but stray in the middle
   #
-  def self.metric_path(v1, v2, metric, config = nil, steps = 10, euclidean_tightness = 1.0, cheat = false, allow_duplicates = true)
+  def self.metric_path(opts)
+    v1     = opts[:v1]
+    v2     = opts[:v2]
+    metric = opts[:metric]
+    config = opts[:config] || MM::DistConfig.new
+    steps  = opts[:steps]  || 10
+    cheat  = opts[:cheat]  || false
+    euclidean_tightness = opts[:euclidean_tightness] || 1.0
+    allow_duplicates    = opts[:allow_duplicates]    || true
+    search_func = opts[:search_func] || MM.hill_climb_stochastic
+    search_opts = opts[:search_opts] || {}
+    
     total_distance = (config == :none) ? metric.call(v1, v2) : metric.call(v1, v2, config)
     total_euclidean_distance = MM.euclidean.call(v1,v2)
     inc = total_distance.to_f / steps
@@ -681,20 +692,21 @@ module MM
     steps.times do |step|
       i = step + 1
       climb_func = ->(test_point) {
-        dist_v1 = metric.call(v1, test_point, config)
-        dist_v2 = metric.call(v2, test_point, config)
+        dist_v1 = (config == :none) ? metric.call(v1, test_point) : metric.call(v1, test_point, config)
+        dist_v2 = (config == :none) ? metric.call(v2, test_point) : metric.call(v2, test_point, config)
         target_v1 = inc * i
         target_v2 = total_distance - (inc * i)
         (target_v1 - dist_v1).abs + (target_v2 - dist_v2).abs + (euclidean_tightness * MM.euclidean.call(test_point, MM.interpolate(v1, v2, i.to_f / steps)))
       }
       #puts "\nNew hill climb, starting from #{path[-1].to_a.to_s}"
-      
+      search_opts[:climb_func] = climb_func
+      search_opts[:start_vector] = path[-1]
       begin
-        newpoint = MM.hill_climb_stochastic.call(climb_func, path[-1], 0.001, 1.0, 4.0)
+        newpoint = search_func.call(search_opts)
       end while (newpoint.to_a.uniq != newpoint.to_a) && !allow_duplicates
       puts " - newpoint: #{newpoint.to_a.to_s}"
-      dist_v1a = metric.call(v1, newpoint, config)
-      dist_v2a = metric.call(v2, newpoint, config)
+      dist_v1a = (config == :none) ? metric.call(v1, newpoint) : metric.call(v1, newpoint, config)
+      dist_v2a = (config == :none) ? metric.call(v2, newpoint) : metric.call(v2, newpoint, config)
       target_v1a = inc * i
       target_v2a = total_distance - (inc * i)
       off_v1a = (target_v1a - dist_v1a).abs
