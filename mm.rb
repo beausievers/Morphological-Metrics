@@ -585,8 +585,14 @@ module MM
   end
 
   # Find v2 a given distance d from v1 using a given metric and search algorithm.
-  def self.find_point_at_distance(v1, d, dist_func, config = self::DistConfig.new, search_func = @@hill_climb_stochastic)
-    if config.nil?
+  def self.find_point_at_distance(opts)
+    v1          = opts[:v1]
+    d           = opts[:d]
+    dist_func   = opts[:dist_func]
+    config      = opts[:config]      || self::DistConfig.new
+    search_func = opts[:search_func] || @@hill_climb_stochastic
+    
+    if config == :none
       climb_func = ->(test_point) {
         (dist_func.call(v1, test_point) - d).abs
       }
@@ -661,7 +667,7 @@ module MM
   # E.g. it could be tight at the beginning and end but stray in the middle
   #
   def self.metric_path(v1, v2, metric, config = nil, steps = 10, euclidean_tightness = 1.0, cheat = false, allow_duplicates = true)
-    total_distance = config.nil? ? metric.call(v1, v2) : metric.call(v1, v2, config)
+    total_distance = (config == :none) ? metric.call(v1, v2) : metric.call(v1, v2, config)
     total_euclidean_distance = MM.euclidean.call(v1,v2)
     inc = total_distance.to_f / steps
     
