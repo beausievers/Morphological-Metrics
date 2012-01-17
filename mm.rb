@@ -591,6 +591,7 @@ module MM
     dist_func   = opts[:dist_func]
     config      = opts[:config]      || self::DistConfig.new
     search_func = opts[:search_func] || @@hill_climb_stochastic
+    search_opts = opts[:search_opts] || {}
     
     if config == :none
       climb_func = ->(test_point) {
@@ -601,7 +602,9 @@ module MM
         (dist_func.call(v1, test_point, config) - d).abs
       }
     end
-    search_func.call(climb_func, v1)
+    search_opts[:climb_func] = climb_func
+    search_opts[:start_vector] = v1
+    search_func.call(search_opts)
   end
   
   #
@@ -610,16 +613,14 @@ module MM
   # Points on the surface of an n-sphere, but these points will 
   # not necessarily be uniformly distributed. Also grossly inefficient.
   #
-  def self.set_at_distance(opts = {})
+  def self.set_at_distance(opts)
     v1           = opts[:v1]
     d            = opts[:d]
     dist_func    = opts[:dist_func]
     config       = opts[:config]       || self::DistConfig.new
     
     search_func  = opts[:search_func]  || @@hill_climb_stochastic
-    search_epsilon    = opts[:search_epsilon]    || 0.01
-    search_min_step   = opts[:search_min_step]   || 1.0
-    search_start_step = opts[:search_start_step] || 4.0
+    search_opts  = opts[:search_opts]  || {}
     set_size     = opts[:set_size]     || 10
     max_failures = opts[:max_failures] || 1000
     
@@ -633,10 +634,13 @@ module MM
       }
     end
     
+    search_opts[:climb_func] = climb_func
+    search_opts[:start_vector] = v1
+    
     set = []
     failures = 0
     while set.size < set_size && failures < max_failures
-      candidate = search_func.call(climb_func, v1, search_epsilon, search_min_step, search_start_step)
+      candidate = search_func.call(search_opts)
       if !set.include?(candidate)
         set << candidate
       else
@@ -731,8 +735,15 @@ module MM
   # Naive hill climbing approach. 
   # Create vectors which minimize a given funcion.
   #
-  @@hill_climb = ->(climb_func, start_vector, epsilon = 0.01, min_step_size = 0.1, 
-                    start_step_size = 1.0, max_iterations = 1000, return_full_path = false) {
+  @@hill_climb = ->(opts) {
+    climb_func       = opts[:climb_func]
+    start_vector     = opts[:start_vector]
+    epsilon          = opts[:epsilon]          || 0.01
+    min_step_size    = opts[:min_step_size]    || 0.1
+    start_step_size  = opts[:start_step_size]  || 1.0
+    max_iterations   = opts[:max_iterations]   || 1000
+    return_full_path = opts[:return_full_path] || false                  
+
     start_vector = start_vector.to_f
     dimensions = start_vector.total
     step_size = NArray.float(dimensions).fill!(start_step_size)
@@ -786,8 +797,15 @@ module MM
   #
   # Stochastic hill climbing
   #
-  @@hill_climb_stochastic = ->(climb_func, start_vector, epsilon = 0.01, min_step_size = 0.1, 
-                      start_step_size = 1.0, max_iterations = 1000, return_full_path = false) {
+  @@hill_climb_stochastic = ->(opts) {
+    climb_func       = opts[:climb_func]
+    start_vector     = opts[:start_vector]
+    epsilon          = opts[:epsilon]          || 0.01
+    min_step_size    = opts[:min_step_size]    || 0.1
+    start_step_size  = opts[:start_step_size]  || 1.0
+    max_iterations   = opts[:max_iterations]   || 1000
+    return_full_path = opts[:return_full_path] || false
+
     start_vector = start_vector.to_f
     dimensions = start_vector.total
     step_size = start_step_size
