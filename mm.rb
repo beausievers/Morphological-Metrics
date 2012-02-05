@@ -592,6 +592,7 @@ module MM
     config      = opts[:config]      || self::DistConfig.new
     search_func = opts[:search_func] || @@hill_climb_stochastic
     search_opts = opts[:search_opts] || {}
+    allow_duplicates = opts[:allow_duplicates]
     
     if config == :none
       climb_func = ->(test_point) {
@@ -604,14 +605,17 @@ module MM
     end
     search_opts[:climb_func] = climb_func
     search_opts[:start_vector] = v1
-    search_func.call(search_opts)
+    begin
+      newpoint = search_func.call(search_opts)
+    end while (newpoint.to_a.uniq != newpoint.to_a) && !allow_duplicates
+    newpoint
   end
   
   #
   # Find a collection of points a given distance from a vector.
   # 
   # Points on the surface of an n-sphere, but these points will 
-  # not necessarily be uniformly distributed. Also grossly inefficient.
+  # not necessarily be uniformly distributed. Grossly inefficient.
   #
   def self.set_at_distance(opts)
     v1           = opts[:v1]
@@ -641,10 +645,10 @@ module MM
     failures = 0
     while set.size < set_size && failures < max_failures
       candidate = search_func.call(search_opts)
-      if !set.include?(candidate)
-        set << candidate
-      else
+      if set.include?(candidate)
         failures += 1
+      else
+        set << candidate
       end
     end
     set
