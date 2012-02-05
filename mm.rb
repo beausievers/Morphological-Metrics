@@ -586,7 +586,7 @@ module MM
 
   #
   # Find v2 a given distance d from v1 using a given metric and search algorithm.
-  # Possibly grossly inefficient.
+  # Possibly grossly inefficient. Might hang forever.
   #
   def self.find_point_at_distance(opts)
     v1          = opts[:v1]
