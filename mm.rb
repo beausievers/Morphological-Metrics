@@ -584,7 +584,10 @@ module MM
     scale * deviates
   end
 
+  #
   # Find v2 a given distance d from v1 using a given metric and search algorithm.
+  # Possibly grossly inefficient.
+  #
   def self.find_point_at_distance(opts)
     v1          = opts[:v1]
     d           = opts[:d]
@@ -615,36 +618,16 @@ module MM
   # Find a collection of points a given distance from a vector.
   # 
   # Points on the surface of an n-sphere, but these points will 
-  # not necessarily be uniformly distributed. Grossly inefficient.
+  # not necessarily be uniformly distributed.
   #
   def self.set_at_distance(opts)
-    v1           = opts[:v1]
-    d            = opts[:d]
-    dist_func    = opts[:dist_func]
-    config       = opts[:config]       || self::DistConfig.new
-    
-    search_func  = opts[:search_func]  || @@hill_climb_stochastic
-    search_opts  = opts[:search_opts]  || {}
     set_size     = opts[:set_size]     || 10
     max_failures = opts[:max_failures] || 1000
-    
-    if config == :none
-      climb_func = ->(test_point) {
-        (dist_func.call(v1, test_point) - d).abs
-      }
-    else
-      climb_func = ->(test_point) {
-        (dist_func.call(v1, test_point, config) - d).abs
-      }
-    end
-    
-    search_opts[:climb_func] = climb_func
-    search_opts[:start_vector] = v1
-    
+        
     set = []
     failures = 0
     while set.size < set_size && failures < max_failures
-      candidate = search_func.call(search_opts)
+      candidate = self.find_point_at_distance(opts)
       if set.include?(candidate)
         failures += 1
       else
