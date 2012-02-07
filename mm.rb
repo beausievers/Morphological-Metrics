@@ -668,6 +668,7 @@ module MM
     allow_duplicates    = opts[:allow_duplicates]    || true
     search_func = opts[:search_func] || MM.hill_climb_stochastic
     search_opts = opts[:search_opts] || {}
+    print_states = opts[:print_stats] || false
     
     total_distance = (config == :none) ? metric.call(v1, v2) : metric.call(v1, v2, config)
     total_euclidean_distance = MM.euclidean.call(v1,v2)
@@ -688,22 +689,26 @@ module MM
       #puts "\nNew hill climb, starting from #{path[-1].to_a.to_s}"
       search_opts[:climb_func] = climb_func
       search_opts[:start_vector] = path[-1]
+
       begin
         newpoint = search_func.call(search_opts)
       end while (newpoint.to_a.uniq != newpoint.to_a) && !allow_duplicates
-      puts " - newpoint: #{newpoint.to_a.to_s}"
-      dist_v1a = (config == :none) ? metric.call(v1, newpoint) : metric.call(v1, newpoint, config)
-      dist_v2a = (config == :none) ? metric.call(v2, newpoint) : metric.call(v2, newpoint, config)
-      target_v1a = inc * i
-      target_v2a = total_distance - (inc * i)
-      off_v1a = (target_v1a - dist_v1a).abs
-      off_v2a = (target_v2a - dist_v2a).abs
-      off_euc = euclidean_tightness * MM.euclidean.call(newpoint, MM.interpolate(v1, v2, i.to_f / steps))
-      puts "target_v1: #{target_v1a} target_v2: #{target_v2a}"
-      puts "d_v1: #{metric.call(v1, newpoint, config)} d_v2: #{metric.call(v2, newpoint, config)}"
-      puts "off_v1: #{off_v1a} off_v2: #{off_v2a} off_euc: #{off_euc}"
-      puts "Eval: #{climb_func.call(newpoint)}"
       path << newpoint
+
+      if print_stats && (vectors_at_each_step == 1)
+        puts " - newpoint: #{newpoint.to_a.to_s}"
+        dist_v1a = (config == :none) ? metric.call(v1, newpoint) : metric.call(v1, newpoint, config)
+        dist_v2a = (config == :none) ? metric.call(v2, newpoint) : metric.call(v2, newpoint, config)
+        target_v1a = inc * i
+        target_v2a = total_distance - (inc * i)
+        off_v1a = (target_v1a - dist_v1a).abs
+        off_v2a = (target_v2a - dist_v2a).abs
+        off_euc = euclidean_tightness * MM.euclidean.call(newpoint, MM.interpolate(v1, v2, i.to_f / steps))
+        puts "target_v1: #{target_v1a} target_v2: #{target_v2a}"
+        puts "d_v1: #{metric.call(v1, newpoint, config)} d_v2: #{metric.call(v2, newpoint, config)}"
+        puts "off_v1: #{off_v1a} off_v2: #{off_v2a} off_euc: #{off_euc}"
+        puts "Eval: #{climb_func.call(newpoint)}"
+      end
     end
     path[-1] = v2 if cheat    # Because the hill climb doesn't always make it all the way...
     path
@@ -797,13 +802,14 @@ module MM
   # Stochastic hill climbing
   #
   @@hill_climb_stochastic = ->(opts) {
-    climb_func       = opts[:climb_func]
-    start_vector     = opts[:start_vector]
-    epsilon          = opts[:epsilon]          || 0.01
-    min_step_size    = opts[:min_step_size]    || 0.1
-    start_step_size  = opts[:start_step_size]  || 1.0
-    max_iterations   = opts[:max_iterations]   || 1000
-    return_full_path = opts[:return_full_path] || false
+    climb_func         = opts[:climb_func]
+    start_vector       = opts[:start_vector]
+    epsilon            = opts[:epsilon]            || 0.01
+    min_step_size      = opts[:min_step_size]      || 0.1
+    start_step_size    = opts[:start_step_size]    || 1.0
+    max_iterations     = opts[:max_iterations]     || 1000
+    return_full_path   = opts[:return_full_path]   || false
+    step_size_subtract = opts[:step_size_subtract]
 
     start_vector = start_vector.to_f
     dimensions = start_vector.total
@@ -839,7 +845,11 @@ module MM
       end
       if current_point == current_point_cache && step_size > min_step_size
         # We didn't get any good results, so lower the step size
-        step_size = step_size * 0.5
+        if step_size_subtract
+          step_size -= step_size_subtract 
+        else
+          step_size = step_size * 0.5
+        end
         step_size = min_step_size if step_size < min_step_size
         #puts "Lower step size to #{step_size}"
       elsif current_point == current_point_cache && step_size <= min_step_size
