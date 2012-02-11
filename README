@@ -1,8 +1,37 @@
 A Ruby implementation of metrics described in Larry Polansky's article
-Morphological Metrics, available here:
+Morphological Metrics--henceforth referred to as MM in this documentation--
+available here:
 
 http://eamusic.dartmouth.edu/~larry/mutationsFAQ.html
 
 Plus some lucky bonus AI stuff.
 
 In development. This is so pre-alpha. Don't even use this.
+
+---
+
+Here's a list of things that needs to happen before you should use this:
+
+Functionality
+    - Confirm that everything described in MM is implemented.
+        + What's missing?
+    - Should this library have these search functions, or should they be
+      split into another library? Is there a standard for doing this in
+      Ruby already?
+
+Test coverage
+    - Tests for all of the metrics supplied in MM.
+    - Tests for important utility functions.
+    - Test for multimetrics.
+    - Test search functions.
+
+Documentation
+    - Code should work with RDoc.
+
+Example code
+    - Should have a brief tutorial based on MM which walks through the
+      composition of a short piece of music.
+    - Possibly also a scientific computing example.
+
+License
+    - Decide what license to use.
