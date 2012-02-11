@@ -22,7 +22,7 @@ module MM
 
   #
   # These distance functions expect vector input (I'm using NArray)
-  # i.e. a Morph with a single parameter
+  # i.e., in MM terms each function takes a Morph with a single parameter
   #
 
   #
@@ -38,10 +38,22 @@ module MM
   #######################
   # Direction Metrics
   #
+  # "Direction metrics measure /contour/ differences between morphs. A morph 
+  #  and some 'contour preserving' distortion are the same under direction 
+  #  metrics. They are listed here from least to most sensitive." MM p. 311
+  #
 
   #
   # Unordered Linear Direction, MM p. 312, 316
   # 
+  # "[M]easures the differences in average 'up-ness, 'down-ness and equal-
+  #  ness between two morphs. [...] The ULD is a statistical comparison of
+  #  linear interval contour, independent of the /corresponding/ respective
+  #  intra-morphological orders of two morphs. [...] Under the ULD, morphs
+  #  which 'go up a lot' (linearly) will be closer to other that 'go up a 
+  #  lot', even if they do not go up in the same places. ULD values range 
+  #  from [0,1], with a grain of 1 / ((L - 1) * 2)." MM p. 311-12
+  #
   # This is the version with scaling for morphs of possibly unequal length
   # given on MM p. 316.
   #
@@ -64,6 +76,13 @@ module MM
   #
   # Ordered Linear Direction, MM p. 312
   #
+  # "The OLD measures the percentage of different contour values between 
+  #  corresponding linear intervals. That is, if delta(M)[1] 'goes up' where
+  #  delta(N)[1] 'goes down' or stays the same, the sum of the direction
+  #  dissimilarities is incremented. For morphs with the same linear contour,
+  #  OLD = 0. If two morphs differ in every place (linearly), OLD = 1" 
+  #   MM p. 313
+  #
   @@old = ->(m, n, config = nil) do
     if config.nil?
       config = self::DistConfig.new
@@ -82,11 +101,11 @@ module MM
   #
   # Ordered Combinatorial Direction, MM p. 313.
   #
-  #   5 9 3 2       2 5 6 6
-  # 5   - + +     2   - - -
-  # 9     + +     5     - -
-  # 3       +     6       0
-  # 2             6
+  # "The OCD is the combinatorial version of the OLD. It is the most 
+  #  discriminating of the direction metrics. The OCD measures the complete,
+  #  cell-by-cell network of contour similarity between two morphs. The OCD
+  #  closely reflects melodic perception, tracking the difference between the
+  #  combinatorial contour of two melodies." MM p. 314
   #
   # The description of diff() (here NArray.ne()) in MM relies on the 
   # generalized interval function. Here instead we are assuming 
@@ -117,13 +136,16 @@ module MM
   #
   # Unordered Combinatorial Direction, MM p. 314, 316.
   #
+  # "The UCD compares the statistics of combinatorial 'up/equal/down-ness' of
+  #  each morph. It does not discern similarities in /corresponding/ 
+  #  intervals. In general, OCD >= UCD, since the OCD is more sensitive. [...]
+  #  UCD values range from [0,1] with a grain of 1 / (L[m] * 2)." MM p. 314-16
+  #
   # The equation given in MM is misleadingly similar to that given for the
   # ULD metric, but they are not alike; this one is combinatorial.
   #
-  # The situation with passing in a delta function is the same as for OCD
-  # above, for the same reasons.
-  #
-  # This is the version given for morphs of possibly unequal length, given on MM p. 316
+  # This is the version given for morphs of possibly unequal length, given on
+  # MM p. 316
   #
   @@ucd = ->(m, n, config = nil) do
     if config.nil?
@@ -193,16 +215,21 @@ module MM
   #
   # Ordered Linear Magnitude, generalized. MM p. 305, 318-319
   #
-  # The average difference between the deltas.
+  # "The OLM measures the average difference between corresponding intervals
+  #  in two morphs. [...] Unlike direction metrics, magnitude metrics are, by
+  #  definition, unscaled. Since intervals are not bounded, the OLM in its 
+  #  unscaled form yields indefinitely lage values." MM p. 319
+  #
+  # TODO: Clarify this scaling stuff.
   #
   # Absolute scaling: Multiplies the denominator in the averaging operation by 
   #   the max delta (across both vectors). Puts the final average in terms of
   #   % of this max delta.
   # 
   # Relative scaling: Divides each delta vector by its own max. Puts deltas in 
-  #   terms of % of the largest delta in each delta vector. I.e. relative scaling
-  #   considers augmented/diminished scalings of vectors to be equivalent. E.g. 
-  #   [0,2,6,12] and [0,1,3,6] have distance 0.
+  #   terms of % of the largest delta in each delta vector. I.e. relative 
+  #   scaling considers augmented/diminished scalings of vectors to be 
+  #   equivalent. E.g. [0,2,6,12] and [0,1,3,6] have distance 0.
   #
   @@olm = self.get_mag_metric(:linear,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
@@ -216,8 +243,15 @@ module MM
   #
   # Unordered Linear Magnitude, generalized. MM p. 304, 320
   #
-  # The difference between average deltas for each vector.
-  # 
+  # "[T]he ULM measures the /difference of the average/ intervals of two 
+  #  morphs, whereas the OLM measures the /average difference of corresponding 
+  #  intervals/ of two morphs. [...] The ULM is not sensitive to intervallic 
+  #  order, generating a space in which morphs are 'closer' to each other than
+  #  in OLM-space. In general, OLM >= ULM. Since length(M) need not equal 
+  #  length(N), the ULM does not require equal length morphs." MM p. 320-21
+  #
+  #  TODO: Clarify scaling.
+  #
   @@ulm = self.get_mag_metric(:linear,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
             inner_scale_m, inner_scale_n, scale_factor) {
@@ -228,6 +262,12 @@ module MM
   
   #
   # Ordered Combinatorial Magnitude, MM p. 323
+  #
+  # "The OCM is the combinatorial version of the OLM. [...] The OCM measures 
+  #  the average cell-by-cell difference between two absolute magnitude 
+  #  matrices of equal length morphs." MM p. 324
+  #
+  # TODO: This quote probably isn't enough.
   #
   @@ocm = self.get_mag_metric(:combinatorial,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
@@ -240,6 +280,13 @@ module MM
 
   #
   # Unordered Combinatorial Magnitude, MM p. 325
+  #
+  # "The UCM is the combinatorial version of the ULM, the difference between
+  #  average combinatorial intervals. [...] The UCM is a useful statistical 
+  #  measure. Like the ULM, it does not require that length(m) = length(n)."
+  #   MM p. 325
+  #
+  # TODO: This quote probably isn't enough.
   #
   @@ucm = self.get_mag_metric(:combinatorial,
     ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
@@ -254,8 +301,6 @@ module MM
                      (n_diff.to_f / inner_scale_n).sum / (n_combo.size * scale_factor)).abs
     }
   )
-
-
 
   
   #
