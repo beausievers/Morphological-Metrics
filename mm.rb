@@ -33,122 +33,8 @@ module MM
     # for functions that require it, e.g. angle.
     (((m - n) ** 2).sum) ** 0.5
   end
-
-  #
-  # Absolute magnitude metric, MM p. 299
-  #
-  @@amm = ->(m, n, config = self::DistConfig.new) do
-    result = (m - n).abs.sum 
-    result = result / m.total.to_f if scale == :absolute
-    result
-  end
   
-  ################################################################
-  # Magnitude Metrics
-  #
   
-  def self.get_mag_metric(style = :combinatorial, post_proc)
-    ->(m, n, config = self::DistConfig.new) {
-      if style == :combinatorial
-        m_combo = self.ordered_2_combinations(m.to_a)
-        n_combo = self.ordered_2_combinations(n.to_a)
-        m_diff = NArray.to_na(m_combo.map { |a,b| config.intra_delta.call(a,b) })
-        n_diff = NArray.to_na(n_combo.map { |a,b| config.intra_delta.call(a,b) })
-        #puts "m_combo: #{m_combo.to_a.to_s}"
-        #puts "n_combo: #{n_combo.to_a.to_s}"
-      elsif style == :linear
-        m_combo, n_combo = nil, nil
-        m_diff = self.vector_delta(m, config.order, config.intra_delta, config.int_func)
-        n_diff = self.vector_delta(n, config.order, config.intra_delta, config.int_func)
-      end
-      
-      #puts "m_diff: #{m_diff.to_a.to_s}"
-      #puts "n_diff: #{n_diff.to_a.to_s}"
-
-      scale_factor, inner_scale_m, inner_scale_n = 1, 1, 1
-
-      if config.scale == :absolute
-        the_max = [m_diff.max, n_diff.max].max 
-        scale_factor = the_max unless the_max == 0
-      elsif config.scale == :relative
-        inner_scale_m = m_diff.max unless m_diff.max == 0
-        inner_scale_n = n_diff.max unless n_diff.max == 0
-      elsif config.scale == :maxint_squared
-        root_of_squared_differences = ((m_diff - n_diff)**2)**0.5
-        scale_factor = root_of_squared_differences.max unless root_of_squared_differences.max == 0
-      end
-
-      post_proc.call(config.intra_delta, config.inter_delta, m_diff, n_diff, m_combo, n_combo, 
-                     inner_scale_m, inner_scale_n, scale_factor)
-    }
-  end
-  
-  #
-  # Ordered Linear Magnitude, generalized. MM p. 305, 318-319
-  #
-  # The average difference between the deltas.
-  #
-  # Absolute scaling: Multiplies the denominator in the averaging operation by 
-  #   the max delta (across both vectors). Puts the final average in terms of
-  #   % of this max delta.
-  # 
-  # Relative scaling: Divides each delta vector by its own max. Puts deltas in 
-  #   terms of % of the largest delta in each delta vector. I.e. relative scaling
-  #   considers augmented/diminished scalings of vectors to be equivalent. E.g. 
-  #   [0,2,6,12] and [0,1,3,6] have distance 0.
-  #
-  @@olm = self.get_mag_metric(:linear,
-    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
-            inner_scale_m, inner_scale_n, scale_factor) {
-      inter_diff = inter_delta.call(m_diff.to_f / inner_scale_m, n_diff.to_f / inner_scale_n)
-      #puts "inter_diff: #{inter_diff.to_a.to_s}"
-      inter_diff.sum.to_f / (inter_diff.total * scale_factor).to_f
-    }
-  )
-
-  #
-  # Unordered Linear Magnitude, generalized. MM p. 304, 320
-  #
-  # The difference between average deltas for each vector.
-  # 
-  @@ulm = self.get_mag_metric(:linear,
-    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
-            inner_scale_m, inner_scale_n, scale_factor) {
-      inter_delta.call(m_diff.sum.to_f / (m_diff.total * inner_scale_m), 
-                       n_diff.sum.to_f / (n_diff.total * inner_scale_n) ).to_f / scale_factor
-    }
-  )
-  
-  #
-  # Ordered Combinatorial Magnitude, MM p. 323
-  #
-  @@ocm = self.get_mag_metric(:combinatorial,
-    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
-            inner_scale_m, inner_scale_n, scale_factor) {
-      sum = inter_delta.call(m_diff.to_f / inner_scale_m, 
-                             n_diff.to_f / inner_scale_n).sum
-      sum.to_f / (m_combo.size * scale_factor)
-    }
-  )
-
-  #
-  # Unordered Combinatorial Magnitude, MM p. 325
-  #
-  @@ucm = self.get_mag_metric(:combinatorial,
-    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
-            inner_scale_m, inner_scale_n, scale_factor) {
-    #puts "total m: #{(m_diff.to_f / inner_scale_m).sum}"
-    #puts "total n: #{(n_diff.to_f / inner_scale_n).sum}"
-    #puts "inner scale m: #{inner_scale_m}"
-    #puts "inner scale n: #{inner_scale_n}"
-    #puts "avgd m: #{(m_diff.to_f / inner_scale_m).sum / (m_combo.size * scale_factor)}"
-    #puts "avgd n: #{(n_diff.to_f / inner_scale_n).sum / (n_combo.size * scale_factor)}"
-    inter_delta.call((m_diff.to_f / inner_scale_m).sum / (m_combo.size * scale_factor),
-                     (n_diff.to_f / inner_scale_n).sum / (n_combo.size * scale_factor)).abs
-    }
-  )
-
-
   #######################
   # Direction Metrics
   #
@@ -262,6 +148,115 @@ module MM
     end
     sum.to_f / 2
   end
+  
+  
+  ################################################################
+  # Magnitude Metrics
+  #
+  
+  def self.get_mag_metric(style = :combinatorial, post_proc)
+    ->(m, n, config = self::DistConfig.new) {
+      if style == :combinatorial
+        m_combo = self.ordered_2_combinations(m.to_a)
+        n_combo = self.ordered_2_combinations(n.to_a)
+        m_diff = NArray.to_na(m_combo.map { |a,b| config.intra_delta.call(a,b) })
+        n_diff = NArray.to_na(n_combo.map { |a,b| config.intra_delta.call(a,b) })
+        #puts "m_combo: #{m_combo.to_a.to_s}"
+        #puts "n_combo: #{n_combo.to_a.to_s}"
+      elsif style == :linear
+        m_combo, n_combo = nil, nil
+        m_diff = self.vector_delta(m, config.order, config.intra_delta, config.int_func)
+        n_diff = self.vector_delta(n, config.order, config.intra_delta, config.int_func)
+      end
+      
+      #puts "m_diff: #{m_diff.to_a.to_s}"
+      #puts "n_diff: #{n_diff.to_a.to_s}"
+
+      scale_factor, inner_scale_m, inner_scale_n = 1, 1, 1
+
+      if config.scale == :absolute
+        the_max = [m_diff.max, n_diff.max].max 
+        scale_factor = the_max unless the_max == 0
+      elsif config.scale == :relative
+        inner_scale_m = m_diff.max unless m_diff.max == 0
+        inner_scale_n = n_diff.max unless n_diff.max == 0
+      elsif config.scale == :maxint_squared
+        root_of_squared_differences = ((m_diff - n_diff)**2)**0.5
+        scale_factor = root_of_squared_differences.max unless root_of_squared_differences.max == 0
+      end
+
+      post_proc.call(config.intra_delta, config.inter_delta, m_diff, n_diff, m_combo, n_combo, 
+                     inner_scale_m, inner_scale_n, scale_factor)
+    }
+  end
+  
+  #
+  # Ordered Linear Magnitude, generalized. MM p. 305, 318-319
+  #
+  # The average difference between the deltas.
+  #
+  # Absolute scaling: Multiplies the denominator in the averaging operation by 
+  #   the max delta (across both vectors). Puts the final average in terms of
+  #   % of this max delta.
+  # 
+  # Relative scaling: Divides each delta vector by its own max. Puts deltas in 
+  #   terms of % of the largest delta in each delta vector. I.e. relative scaling
+  #   considers augmented/diminished scalings of vectors to be equivalent. E.g. 
+  #   [0,2,6,12] and [0,1,3,6] have distance 0.
+  #
+  @@olm = self.get_mag_metric(:linear,
+    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
+            inner_scale_m, inner_scale_n, scale_factor) {
+      inter_diff = inter_delta.call(m_diff.to_f / inner_scale_m, n_diff.to_f / inner_scale_n)
+      #puts "inter_diff: #{inter_diff.to_a.to_s}"
+      inter_diff.sum.to_f / (inter_diff.total * scale_factor).to_f
+    }
+  )
+
+  #
+  # Unordered Linear Magnitude, generalized. MM p. 304, 320
+  #
+  # The difference between average deltas for each vector.
+  # 
+  @@ulm = self.get_mag_metric(:linear,
+    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
+            inner_scale_m, inner_scale_n, scale_factor) {
+      inter_delta.call(m_diff.sum.to_f / (m_diff.total * inner_scale_m), 
+                       n_diff.sum.to_f / (n_diff.total * inner_scale_n) ).to_f / scale_factor
+    }
+  )
+  
+  #
+  # Ordered Combinatorial Magnitude, MM p. 323
+  #
+  @@ocm = self.get_mag_metric(:combinatorial,
+    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
+            inner_scale_m, inner_scale_n, scale_factor) {
+      sum = inter_delta.call(m_diff.to_f / inner_scale_m, 
+                             n_diff.to_f / inner_scale_n).sum
+      sum.to_f / (m_combo.size * scale_factor)
+    }
+  )
+
+  #
+  # Unordered Combinatorial Magnitude, MM p. 325
+  #
+  @@ucm = self.get_mag_metric(:combinatorial,
+    ->(intra_delta, inter_delta, m_diff, n_diff, m_combo, n_combo, 
+            inner_scale_m, inner_scale_n, scale_factor) {
+    #puts "total m: #{(m_diff.to_f / inner_scale_m).sum}"
+    #puts "total n: #{(n_diff.to_f / inner_scale_n).sum}"
+    #puts "inner scale m: #{inner_scale_m}"
+    #puts "inner scale n: #{inner_scale_n}"
+    #puts "avgd m: #{(m_diff.to_f / inner_scale_m).sum / (m_combo.size * scale_factor)}"
+    #puts "avgd n: #{(n_diff.to_f / inner_scale_n).sum / (n_combo.size * scale_factor)}"
+    inter_delta.call((m_diff.to_f / inner_scale_m).sum / (m_combo.size * scale_factor),
+                     (n_diff.to_f / inner_scale_n).sum / (n_combo.size * scale_factor)).abs
+    }
+  )
+
+
+
   
   #
   # Interval Class Metric, meta-interval form. MM p. 303
