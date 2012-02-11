@@ -1,11 +1,41 @@
+#
+# ==Introduction
+#
+# This module contains implementations of the metrics described by Larry
+# Polansky in his article _Morphological_ _Metrics_ (_MM_ in this document).
+# The abstract of _MM_ introduces the idea of measuring musical distance:
+#
+# "This article describes a number of methods for measuring morphological
+# similarity in music. A variety of _metric_ _equations_ are described which 
+# attempt to understand certain kinds of musical and perceptual distances 
+# between pairs of shapes in any musical parameter. Different techniques for 
+# applying these metrics, such as weightings, variants on each class of 
+# metric, and multidimensional and multimetric combinations are also 
+# described." _MM_ p. 289
+#
+# _MM_ defines morphologies, or morphs, as ordered sets. This module treats 
+# morphs as 1-dimensional vectors of numerical values, and depends on the
+# NArray library for its vector implementation.
+#
+# The original article and other supporting information can be found on 
+# Larry's website: http://eamusic.dartmouth.edu/~larry/mutationsFAQ.html
+#
+# In addition to the techniques described in _MM_, this module contains tools 
+# for generating morphs and sets of morphs which satisfy certain constraints
+# regarding their positions in metric space. Though these tools were designed
+# with music composition and analysis in mind, they may find application in 
+# other areas, such as visual art, computer graphics, psychological experiment 
+# design, and the natural sciences. 
+#
 module MM
   include Math
   require 'narray'
   include NMath
   
+  ##
+  # Configuration object for distance functions
   #
-  # Configuration objects for distance functions
-  #
+  # 
   class DistConfig
     attr_accessor :scale, :order, :inter_delta, :intra_delta, :int_func, :ic_calc, :mod
 
@@ -20,13 +50,9 @@ module MM
     end
   end
 
-  #
-  # These distance functions expect vector input (I'm using NArray)
-  # i.e., in MM terms each function takes a Morph with a single parameter
-  #
-
-  #
-  # Euclidean distance
+  ##
+  # :singleton-method: dist_euclidean
+  # Simple euclidean distance.
   #
   @@euclidean = ->(m, n, config = nil) do
     # The config argument is only there so the signature is correct
@@ -43,20 +69,21 @@ module MM
   #  metrics. They are listed here from least to most sensitive." MM p. 311
   #
 
-  #
+  ## 
+  # :singleton-method: dist_uld
   # Unordered Linear Direction, MM p. 312, 316
   # 
   # "[M]easures the differences in average 'up-ness, 'down-ness and equal-
-  #  ness between two morphs. [...] The ULD is a statistical comparison of
-  #  linear interval contour, independent of the /corresponding/ respective
-  #  intra-morphological orders of two morphs. [...] Under the ULD, morphs
-  #  which 'go up a lot' (linearly) will be closer to other that 'go up a 
-  #  lot', even if they do not go up in the same places. ULD values range 
-  #  from [0,1], with a grain of 1 / ((L - 1) * 2)." MM p. 311-12
+  # ness between two morphs. [...] The ULD is a statistical comparison of
+  # linear interval contour, independent of the /corresponding/ respective
+  # intra-morphological orders of two morphs. [...] Under the ULD, morphs
+  # which 'go up a lot' (linearly) will be closer to other that 'go up a 
+  # lot', even if they do not go up in the same places. ULD values range 
+  # from [0,1], with a grain of 1 / ((L - 1) * 2)." MM p. 311-12
   #
   # This is the version with scaling for morphs of possibly unequal length
   # given on MM p. 316.
-  #
+  # :doc:
   @@uld = ->(m, n, config = nil) do
     if config.nil?
       config = self::DistConfig.new
@@ -73,15 +100,16 @@ module MM
   end
 
 
-  #
+  ##
+  # :singleton-method: dist_old
   # Ordered Linear Direction, MM p. 312
   #
   # "The OLD measures the percentage of different contour values between 
-  #  corresponding linear intervals. That is, if delta(M)[1] 'goes up' where
-  #  delta(N)[1] 'goes down' or stays the same, the sum of the direction
-  #  dissimilarities is incremented. For morphs with the same linear contour,
-  #  OLD = 0. If two morphs differ in every place (linearly), OLD = 1" 
-  #   MM p. 313
+  # corresponding linear intervals. That is, if delta(M)[1] 'goes up' where
+  # delta(N)[1] 'goes down' or stays the same, the sum of the direction
+  # dissimilarities is incremented. For morphs with the same linear contour,
+  # OLD = 0. If two morphs differ in every place (linearly), OLD = 1" 
+  #  MM p. 313
   #
   @@old = ->(m, n, config = nil) do
     if config.nil?
@@ -98,14 +126,15 @@ module MM
     sgn_m.ne(sgn_n).sum.to_f / scale_factor
   end
 
-  #
+  ##
+  # :singleton-method: dist_ocd
   # Ordered Combinatorial Direction, MM p. 313.
   #
   # "The OCD is the combinatorial version of the OLD. It is the most 
-  #  discriminating of the direction metrics. The OCD measures the complete,
-  #  cell-by-cell network of contour similarity between two morphs. The OCD
-  #  closely reflects melodic perception, tracking the difference between the
-  #  combinatorial contour of two melodies." MM p. 314
+  # discriminating of the direction metrics. The OCD measures the complete,
+  # cell-by-cell network of contour similarity between two morphs. The OCD
+  # closely reflects melodic perception, tracking the difference between the
+  # combinatorial contour of two melodies." MM p. 314
   #
   # The description of diff() (here NArray.ne()) in MM relies on the 
   # generalized interval function. Here instead we are assuming 
@@ -133,13 +162,14 @@ module MM
     m_sgn.ne(n_sgn).sum.to_f / m_combo.size
   end
 
-  #
+  ##
+  # :singleton-method: dist_ucd
   # Unordered Combinatorial Direction, MM p. 314, 316.
   #
   # "The UCD compares the statistics of combinatorial 'up/equal/down-ness' of
-  #  each morph. It does not discern similarities in /corresponding/ 
-  #  intervals. In general, OCD >= UCD, since the OCD is more sensitive. [...]
-  #  UCD values range from [0,1] with a grain of 1 / (L[m] * 2)." MM p. 314-16
+  # each morph. It does not discern similarities in /corresponding/ 
+  # intervals. In general, OCD >= UCD, since the OCD is more sensitive. [...]
+  # UCD values range from [0,1] with a grain of 1 / (L[m] * 2)." MM p. 314-16
   #
   # The equation given in MM is misleadingly similar to that given for the
   # ULD metric, but they are not alike; this one is combinatorial.
@@ -176,6 +206,13 @@ module MM
   # Magnitude Metrics
   #
   
+  ##
+  # A function which returns procs that are themselves magnitude metrics.
+  #
+  # This function takes a symbol, either +:combinatorial+ or +:linear+, and a
+  # proc containing a description of the metric equation. For usage examples,
+  # please see the implementation of the four magnitude metrics included here.
+  #
   def self.get_mag_metric(style = :combinatorial, post_proc)
     ->(m, n, config = self::DistConfig.new) {
       if style == :combinatorial
@@ -212,13 +249,16 @@ module MM
     }
   end
   
-  #
+  ##
+  # :singleton-method: dist_olm
   # Ordered Linear Magnitude, generalized. MM p. 305, 318-319
   #
   # "The OLM measures the average difference between corresponding intervals
-  #  in two morphs. [...] Unlike direction metrics, magnitude metrics are, by
-  #  definition, unscaled. Since intervals are not bounded, the OLM in its 
-  #  unscaled form yields indefinitely lage values." MM p. 319
+  # in two morphs. [...] Unlike direction metrics, magnitude metrics are, by
+  # definition, unscaled. Since intervals are not bounded, the OLM in its 
+  # unscaled form yields indefinitely lage values." MM p. 319
+  #
+  #--
   #
   # TODO: Clarify this scaling stuff.
   #
@@ -240,15 +280,18 @@ module MM
     }
   )
 
-  #
+  ##
+  # :singleton-method: dist_ulm
   # Unordered Linear Magnitude, generalized. MM p. 304, 320
   #
   # "[T]he ULM measures the /difference of the average/ intervals of two 
-  #  morphs, whereas the OLM measures the /average difference of corresponding 
-  #  intervals/ of two morphs. [...] The ULM is not sensitive to intervallic 
-  #  order, generating a space in which morphs are 'closer' to each other than
-  #  in OLM-space. In general, OLM >= ULM. Since length(M) need not equal 
-  #  length(N), the ULM does not require equal length morphs." MM p. 320-21
+  # morphs, whereas the OLM measures the /average difference of corresponding 
+  # intervals/ of two morphs. [...] The ULM is not sensitive to intervallic 
+  # order, generating a space in which morphs are 'closer' to each other than
+  # in OLM-space. In general, OLM >= ULM. Since length(M) need not equal 
+  # length(N), the ULM does not require equal length morphs." MM p. 320-21
+  #
+  #--
   #
   #  TODO: Clarify scaling.
   #
@@ -260,12 +303,15 @@ module MM
     }
   )
   
-  #
+  ##
+  # :singleton-method: dist_ocm
   # Ordered Combinatorial Magnitude, MM p. 323
   #
   # "The OCM is the combinatorial version of the OLM. [...] The OCM measures 
-  #  the average cell-by-cell difference between two absolute magnitude 
-  #  matrices of equal length morphs." MM p. 324
+  # the average cell-by-cell difference between two absolute magnitude 
+  # matrices of equal length morphs." MM p. 324
+  #
+  #--
   #
   # TODO: This quote probably isn't enough.
   #
@@ -278,13 +324,16 @@ module MM
     }
   )
 
-  #
+  ##
+  # :singleton-method: dist_ucm
   # Unordered Combinatorial Magnitude, MM p. 325
   #
   # "The UCM is the combinatorial version of the ULM, the difference between
-  #  average combinatorial intervals. [...] The UCM is a useful statistical 
-  #  measure. Like the ULM, it does not require that length(m) = length(n)."
-  #   MM p. 325
+  # average combinatorial intervals. [...] The UCM is a useful statistical 
+  # measure. Like the ULM, it does not require that length(m) = length(n)."
+  #  MM p. 325
+  #
+  #--
   #
   # TODO: This quote probably isn't enough.
   #
@@ -303,12 +352,15 @@ module MM
   )
 
   
-  #
+  ##
+  # :singleton-method: dist_ic
   # Interval Class Metric, meta-interval form. MM p. 303
   #
   # This differs from the OLM. It calculates interval classes
   # and scales according to the max interval class given a mod.
   # (So for mod 12, the scaling factor is 6.)
+  #
+  #--
   #
   # TODO: Can this be written in terms of the OLM above?
   #
@@ -326,18 +378,18 @@ module MM
   end
 
 
+  ##
+  # Create a multimetric. _MM_ p. 342.
   #
-  # Create a multimetric. MM p. 342.
+  # Create a metric which combines other metrics. Each item in the +metrics+ 
+  # array should be a hash with 3 keys: +:metric+, +:config+, and +:weight+.
   #
-  # Create a metric which combines other metrics.
-  # Each item in the metrics array should be a hash
-  # with 3 keys: :metric, :config, :weight
+  # If weights are omitted, simple averaging is assumed.If configs are 
+  # omitted, the default is used. 
   #
-  # If weights are omitted, simple averaging is assumed. 
-  # If configs are omitted, the default is used. 
-  #
-  # If the symbol :none is used as a config, the config argument is omitted in the 
-  # call to the metric. (E.g. if the metric being used is itself a multimetric.)
+  # If the symbol +:none+ is used as a config, the config argument is omitted 
+  # in the call to the metric. This is useful if the metric being used is 
+  # itself a multimetric.
   #
   def self.get_multimetric(metrics)
     ->(m, n) {  # A config argument would be meaningless.
@@ -359,9 +411,13 @@ module MM
   # Creating a metric this way would leave us with the wrong type signature,
   # so it couldn't be used in the same way as other metrics. So instead, we:
   
+  ##
+  # Create an opposition metric.
+  #
   # Return a lambda which is a metric of the extent to which two points oppose
-  # each other around a specified "origin" or third point.
-  # This is the scaled angle relative to two reference points...  
+  # each other around a specified "origin" or third point. This is the scaled 
+  # angle relative to two reference points.
+  #
   def self.get_opposition_metric(v_origin = nil, dist_func = nil, config = self::DistConfig.new)
     ->(v_ref, v, conf = config) {
       angle = self.angle(v, v_ref, v_origin, dist_func, conf)
@@ -369,13 +425,12 @@ module MM
     }
   end
   
-  ###
   #
   # Make each distance metric lambda readable from the outside, i.e.
   # attr_reader behavior, and also provide sugar for avoiding .call
   # (use dist_#{metric}() instead).
   #
-  [:euclidean, :amm, :olm, :ulm, :ic, :uld, :old, :ocd, :ucd, :ocm, :ucm, :mag, :ucm_2,
+  [:euclidean, :olm, :ulm, :ic, :uld, :old, :ocd, :ucd, :ocm, :ucm, :mag, :ucm_2,
    :hill_climb, :hill_climb_stochastic].each do |sym|
     class_eval(<<-EOS, __FILE__, __LINE__)
       unless defined? @@#{sym}
@@ -401,9 +456,9 @@ module MM
   #
 
   #
-  # Magnitude of change between elements in array m
-  # For meta-interval action, specify your own delta lambda
-  # These take the nth order discrete derivative of the input vector
+  # Magnitude of change between elements in array m. For meta-interval action, 
+  # specify your own delta proc. These take the nth order discrete derivative 
+  # of the input vector.
   #
   def self.vector_delta(m, order = 1, delta = nil, int_func = nil)
     # Always go from 0 to length - 2, i.e. stop 1 index short of the end.
@@ -441,15 +496,11 @@ module MM
   end
 
   #
-  # Get the interval class of an interval given a modulus
-  # It's all gotta be Integers.
+  # Get the interval class of an interval given a modulus.
   #
-  # Avoids use of the % operator with negative numbers for
-  # compatibility with both Ruby and NArray definitions.
+  # Avoids use of the % operator with negative numbers for compatibility with 
+  # both Ruby and NArray definitions.
   #
-  # For mod = 12, 0-6 should return 0-6 and...
-  # 7 -> 5, 8 -> 4, 9 -> 3, 10 -> 2, 11 -> 1, 12 -> 0
-  # 13 -> 1, 14 -> 2, ... 19 ->5, 20-> 4
   def self.interval_class(interval, mod = 12)
     modded = interval.abs % mod
     modded = mod - modded if modded > mod / 2
@@ -457,8 +508,8 @@ module MM
   end
 
   #
-  # Number of possible pairwise intervals in a morph, MM p. 307
-  # Second-order binomial coefficient of morph length.
+  # Number of possible pairwise intervals in a morph. MM p. 307
+  # Corresponds to the second-order binomial coefficient of morph length.
   #
   def self.num_pairs(m)
     (m.total**2 - m.total) / 2
@@ -467,6 +518,7 @@ module MM
   #
   # The contour function, sgn. MM p. 311
   # The sgn function returns:
+  #
   #    1 where m[i] > m[j] ("goes down")
   #    0 where m[i] = m[j] ("stays same")
   #   -1 where m[i] < m[j] ("goes up")
@@ -490,9 +542,8 @@ module MM
   end
 
   #
-  # A version of the sgn function for a single integer
-  # as opposed to a whole vector.
-  # I.e., pass in the output from a delta function (e.g. :-) into
+  # A version of the sgn function for a single integer as opposed to a whole 
+  # vector. I.e., pass in the output from a delta function (e.g. :-) into
   # this, and it will give you results in concordance with the sgn function
   # described above.
   #
@@ -517,24 +568,54 @@ module MM
     combinations
   end
 
+  ##
+  # A hash containing delta functions. These functions are for calculating the
+  # difference between adjacent values in a morph. Procs contained in this 
+  # hash are used in DistConfig configuration objects, and affect the way 
+  # metrics are calculated.
   #
-  # Alternative delta functions. MM p. 310.
+  # The included functions are as follows (headings are hash keys):
+  #
+  # [+:abs_diff+] The absolute value of the difference between elements.
+  # [+:raw_diff+] The raw difference between elements.
+  # [+:ratio+] The radio of the first element over the second, as a decimal.
+  # [+:squared_difference+] The raw difference squared.
+  # [+:root_of_squared_difference+] The root of the raw difference squared.
+  # [+:huron+] The consonance value of the interval between elements. Uses
+  #            David Huron's aggregate dyadic consonance measure.
+  #
+  # For more information on delta functions, see _MM_ p. 310.
   #
   DELTA_FUNCTIONS = Hash[
-    :abs_diff => lambda { |a,b| (a - b).abs },         # Default: abs of difference
+    :abs_diff => lambda { |a,b| (a - b).abs },
     :raw_diff => :-.to_proc,
     :ratio => lambda { |a, b| a / b.to_f },
     :squared_difference => lambda { |a, b| (a - b)**2 },
     :root_of_squared_difference => lambda { |a, b| ((a - b)**2)**0.5 },
     :huron => ->(a, b) {
-      #              U       m2/M7   M2/m7  m3/M6  M3/m6  P4/P5   A4/d5
+      #              U     m2/M7   M2/m7  m3/M6  M3/m6  P4/P5   A4/d5
       huronTable = [ 0,   -1.428, -0.582, 0.594, 0.386, 1.240, -0.453 ]
       output = (a.to_i - b.to_i).abs
       return huronTable[MM.interval_class(output, 12)] if output.class == Fixnum
       output.collect { |x| huronTable[MM.interval_class(x, 12)] }
     }
   ]
-
+  
+  ##
+  # A hash containing interval functions. Interval functions are procs which
+  # take a vector and return a corresponding vector where values with the same
+  # index in both vectors are understood as adjacent for the purposes of 
+  # ordered metrics. See _MM_ p. 304 for more information.
+  #
+  # The two functions included here do not come close to exhausting the 
+  # possibilities described in _MM_. In particular, at present there is no
+  # implemention of the idea of a variable _adjacency_ _interval_.
+  #
+  # The included functions are as follows (headings are hash keys):
+  #
+  # [+:plus_one+] The 1st discrete derivative.
+  # [+:mean+] Compares each value to the mean of all values.
+  #
   INTERVAL_FUNCTIONS = Hash[
     :plus_one => lambda do |m|
       m[1...m.total]          # Default: as in the 1st discrete derivative; use all but the 1st element
@@ -544,14 +625,29 @@ module MM
     end
   ]
   
+  ##
+  # A hash containing interval class functions. Procs contained herein are for 
+  # determining the _class_ of a given interval, as opposed to its value
+  # in absolute terms. For example, the interval between C and G is always
+  # a perfect 5th, regardless of what octave the C and the G are in. The
+  # absolute intervals between [60, 67] and [60, 79] are different (7 vs. 19), 
+  # but their interval class is the same (5).
+  #
+  # The included functions are as follows (headings are hash keys):
+  #
+  # [+:mod+] Uses a modulo system, with a default modulus of 12, corresponding
+  #          to the equal-tempered chromatic scale.
+  #
   IC_FUNCTIONS = Hash[
     :mod => lambda do |interval, mod = 12|
       self.interval_class(interval, mod)   # Default: Get the mod 12 interval class.
     end
   ]
 
-  # Provides the angle between two vectors with respect to the origin
-  # or another vector (v3)
+  #
+  # Provides the angle between two vectors with respect to the origin or 
+  # another vector (v3).
+  #
   def self.angle_euclidean(v1, v2, v3 = nil)
     if !v3.nil?
       v1 -= v3
@@ -560,12 +656,18 @@ module MM
     Math.acos(dot(v1, v2) / (length(v1) * length(v2)))
   end
 
-  # Get the angle between two vectors given a distance function
-  # e.g. one of the metrics described above.
-  # (This is why the triangle equality is important.)
+  #
+  # Get the angle between two vectors given a distance function, e.g. one of 
+  # the metrics described above.
+  #
+  # This only makes sense for certain kinds of metrics. At a minimum, the 
+  # metric should satisfy the triangle inequality (i.e. it should be a 
+  # metric); beyond that, there are other requirements which I do not yet 
+  # entirely understand.
   #
   # Question: Should scaling be turned off here by default?
   # Additional question: What does this even mean?
+  #
   def self.angle(v1, v2, v3 = nil, dist_func = nil, config = self::DistConfig.new)
     v3 = NArray.int(v1.total).fill!(0) if v3.nil?
     return 0.0 if (v1 == v3 || v2 == v3)      # not sure if this is strictly kosher
@@ -576,18 +678,24 @@ module MM
     Math.acos(cos_c)
   end
 
+  # The Euclidean norm of the vector. Its magnitude.
+  #--
+  # TODO: This probably needs a less confusing name.
   def self.length(v)
     dot(v,v)**0.5
   end
 
+  # The dot product of two vectors.
   def self.dot(v1, v2)
     (v1 * v2).sum
   end
 
+  # Convert degrees to radians.
   def self.deg2rad(d)
     (d * PI) / 180
   end
 
+  # Convert radians to degrees.
   def self.rad2deg(r)
     (180 * r).to_f / PI
   end
