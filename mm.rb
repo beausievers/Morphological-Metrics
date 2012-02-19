@@ -27,18 +27,88 @@
 # other areas, such as visual art, computer graphics, psychological experiment 
 # design, and the natural sciences. 
 #
+# ==Simple Usage Examples
+# 
+# Metrics can be called in a number of ways. The simplest is to prepend 
+# "dist_" to the name of the metric you want to call, like so:
+#
+# > m = NArray[1,2,3,4]
+# > n = NArray[1,3,5,7]
+# > MM.dist_ocm(m,n)
+# => 0.2777777777777778
+#
+# This works for all of the metrics defined in this module. However, because 
+# some functions (for example, search functions such as 
+# @@hill_climb_stochastic) may take a metric as a parameter, metrics 
+# themselves are actually defined as class level variables which are procs.
+#
+# > MM.ocm
+# => #<Proc:0x00000100947d38@mm.rb:240 (lambda)>
+#
+# The "dist_" approach described above is syntactic sugar for the following, 
+# more direct call:
+#
+# > MM.ocm.call(m,n)
+# => 0.2777777777777778
+#
+# Though the module provides default settings, each of the metrics is 
+# configurable with the use of DistConfig objects. The following example
+# turns scaling off (metrics are scaled absolutely by default):
+#
+# > cfg = MM::DistConfig.new({:scale => :none})
+# => #<MM::DistConfig:0x0000010094b320 @scale=:none, [...] >
+# > MM.dist_ocm(m,n,cfg)
+# => 1.6666666666666667
+#
+# As mentioned above, a number of the methods in this module are generative. 
+# That is, they create morphs which fulfill certain constraints concerning 
+# their positions in metric space. For example, to find a point a certain
+# distance d away from another point v1 given a metric dist_func:
+#
+# > MM.find_point_at_distance({:v1 => m, :d => 0.5, :dist_func => MM.ocm})
+# => NArrayfloat4: [ 1.5, 4.0, 1.0, 3.5 ] 
+# > MM.dist_ocm(m,_)
+# => 0.5
+#
+# Note that as of this writing, this does not always work. Tweaking calls 
+# to ensure their plausibility and double-checking the results are both still
+# necessary, as these functions do not return warnings when their results
+# are sub-optimal:
+#
+# MM.find_point_at_distance({:v1 => m, :d => 0.8, :dist_func => MM.ocm})
+# => NArrayfloat4: [ 4.225, 1.275, 4.275, 1.325 ]
+# > MM.dist_ocm(m,_)
+# => 0.5499999999999999
+#
 module MM
   include Math
   require 'narray'
   include NMath
   
-  ##
   # Configuration object for distance functions
-  #
-  # 
   class DistConfig
     attr_accessor :scale, :order, :inter_delta, :intra_delta, :int_func, :ic_calc, :mod
-
+    
+    # Creates a new DistConfig object. Takes a configuration hash with the 
+    # following keys:
+    #
+    # [+:scale+] One of +:absolute+, +:relative+, or +:none+. Sets the scaling
+    #            method to be applied.
+    # [+:order+] The number of times the intra_delta proc is applied to morphs
+    #            before their comparison. The default settings (i.e. 
+    #            :intra_delta => :abs_diff, :order => 1) correspond to taking
+    #            the first discrete derivative of each morph and comparing 
+    #            the results.
+    # [+:inter_delta+] The delta proc for determining the difference between
+    #                  elements of the two morphs. Default: DELTA_FUNCTIONS[:abs_diff]
+    # [+:intra_delta+] The delta proc for determining the difference between
+    #                  elements of a single morph. Default: DELTA_FUNCTIONS[:abs_diff]
+    # [+:int_func+] The interval function proc. See the INTERVAL_FUNCTIONS
+    #               constant docs for details. Default: INTERVAL_FUNCTIONS[:plus_one]
+    # [+:ic_calc+] The interval class calculation proc. See the IC_FUNCTIONS
+    #              constant docs for details. Default: IC_FUNCTIONS[:mod]
+    # [+:mod+] The modulus of the numbering system. Default: 12
+    #
     def initialize(opts = {})
       @scale       = opts[:scale]       || :absolute
       @order       = opts[:order]       || 1
@@ -109,7 +179,7 @@ module MM
   # delta(N)[1] 'goes down' or stays the same, the sum of the direction
   # dissimilarities is incremented. For morphs with the same linear contour,
   # OLD = 0. If two morphs differ in every place (linearly), OLD = 1" 
-  #  MM p. 313
+  # MM p. 313
   #
   @@old = ->(m, n, config = nil) do
     if config.nil?
@@ -331,7 +401,7 @@ module MM
   # "The UCM is the combinatorial version of the ULM, the difference between
   # average combinatorial intervals. [...] The UCM is a useful statistical 
   # measure. Like the ULM, it does not require that length(m) = length(n)."
-  #  MM p. 325
+  # MM p. 325
   #
   #--
   #
