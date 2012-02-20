@@ -32,53 +32,53 @@
 # Metrics can be called in a number of ways. The simplest is to prepend 
 # "dist_" to the name of the metric you want to call, like so:
 #
-# > m = NArray[1,2,3,4]
-# > n = NArray[1,3,5,7]
-# > MM.dist_ocm(m,n)
-# => 0.2777777777777778
+#  > m = NArray[1,2,3,4]
+#  > n = NArray[1,3,5,7]
+#  > MM.dist_ocm(m,n)
+#  => 0.2777777777777778
 #
 # This works for all of the metrics defined in this module. However, because 
 # some functions (for example, search functions such as 
 # @@hill_climb_stochastic) may take a metric as a parameter, metrics 
 # themselves are actually defined as class level variables which are procs.
 #
-# > MM.ocm
-# => #<Proc:0x00000100947d38@mm.rb:240 (lambda)>
+#  > MM.ocm
+#  => #<Proc:0x00000100947d38@mm.rb:240 (lambda)>
 #
 # The "dist_" approach described above is syntactic sugar for the following, 
 # more direct call:
 #
-# > MM.ocm.call(m,n)
-# => 0.2777777777777778
+#  > MM.ocm.call(m,n)
+#  => 0.2777777777777778
 #
 # Though the module provides default settings, each of the metrics is 
 # configurable with the use of DistConfig objects. The following example
-# turns scaling off (metrics are scaled absolutely by default):
+# turns scaling off (metrics use absolute scaling by default):
 #
-# > cfg = MM::DistConfig.new({:scale => :none})
-# => #<MM::DistConfig:0x0000010094b320 @scale=:none, [...] >
-# > MM.dist_ocm(m,n,cfg)
-# => 1.6666666666666667
+#  > cfg = MM::DistConfig.new({:scale => :none})
+#  => #<MM::DistConfig:0x0000010094b320 @scale=:none, [...] >
+#  > MM.dist_ocm(m,n,cfg)
+#  => 1.6666666666666667
 #
 # As mentioned above, a number of the methods in this module are generative. 
 # That is, they create morphs which fulfill certain constraints concerning 
 # their positions in metric space. For example, to find a point a certain
 # distance d away from another point v1 given a metric dist_func:
 #
-# > MM.find_point_at_distance({:v1 => m, :d => 0.5, :dist_func => MM.ocm})
-# => NArrayfloat4: [ 1.5, 4.0, 1.0, 3.5 ] 
-# > MM.dist_ocm(m,_)
-# => 0.5
+#  > MM.find_point_at_distance({:v1 => m, :d => 0.5, :dist_func => MM.ocm})
+#  => NArrayfloat4: [ 1.5, 4.0, 1.0, 3.5 ] 
+#  > MM.dist_ocm(m,_)
+#  => 0.5
 #
 # Note that as of this writing, this does not always work. Tweaking calls 
 # to ensure their plausibility and double-checking the results are both still
 # necessary, as these functions do not return warnings when their results
 # are sub-optimal:
 #
-# MM.find_point_at_distance({:v1 => m, :d => 0.8, :dist_func => MM.ocm})
-# => NArrayfloat4: [ 4.225, 1.275, 4.275, 1.325 ]
-# > MM.dist_ocm(m,_)
-# => 0.5499999999999999
+#  MM.find_point_at_distance({:v1 => m, :d => 0.8, :dist_func => MM.ocm})
+#  => NArrayfloat4: [ 4.225, 1.275, 4.275, 1.325 ]
+#  > MM.dist_ocm(m,_)
+#  => 0.5499999999999999
 #
 module MM
   include Math
@@ -276,7 +276,7 @@ module MM
   # Magnitude Metrics
   #
   
-  ##
+  #
   # A function which returns procs that are themselves magnitude metrics.
   #
   # This function takes a symbol, either +:combinatorial+ or +:linear+, and a
@@ -448,7 +448,7 @@ module MM
   end
 
 
-  ##
+  #
   # Create a multimetric. _MM_ p. 342.
   #
   # Create a metric which combines other metrics. Each item in the +metrics+ 
@@ -481,7 +481,7 @@ module MM
   # Creating a metric this way would leave us with the wrong type signature,
   # so it couldn't be used in the same way as other metrics. So instead, we:
   
-  ##
+  #
   # Create an opposition metric.
   #
   # Return a lambda which is a metric of the extent to which two points oppose
@@ -638,7 +638,7 @@ module MM
     combinations
   end
 
-  ##
+  #
   # A hash containing delta functions. These functions are for calculating the
   # difference between adjacent values in a morph. Procs contained in this 
   # hash are used in DistConfig configuration objects, and affect the way 
@@ -671,7 +671,7 @@ module MM
     }
   ]
   
-  ##
+  #
   # A hash containing interval functions. Interval functions are procs which
   # take a vector and return a corresponding vector where values with the same
   # index in both vectors are understood as adjacent for the purposes of 
@@ -695,7 +695,7 @@ module MM
     end
   ]
   
-  ##
+  #
   # A hash containing interval class functions. Procs contained herein are for 
   # determining the _class_ of a given interval, as opposed to its value
   # in absolute terms. For example, the interval between C and G is always
@@ -1016,8 +1016,25 @@ module MM
     current_point
   }
   
+  ##
+  # :singleton-method: hill_climb_stochastic
   #
-  # Stochastic hill climbing
+  # A stochastic hill climbing algorithm. Probably a bad one.
+  #
+  # Takes a hash with the following keys:
+  #
+  # [+:climb_func+] A proc. This is the function the algorithm will attempt 
+  #                 to minimize.
+  # [+:start_vector+] The starting point of the search.
+  # [+:epsilon+] Anything point below this distance will be considered a 
+  #              successful search result. Default: 0.01
+  # [+:min_step_size+] The minimum step size the search algorithm will use. Default: 0.1
+  # [+:start_step_size+] The starting step size. Default: 1.0
+  # [+:max_iterations+] The number of steps to take before giving up.
+  # [+:return_full_path+] If true, this will return every step in the search.
+  # [+:step_size_subtract+] If set to a value, every time the algorithm needs
+  #                         to decrease the step size, it will decrement it
+  #                         by this value. Otherwise it will divide it by 2.0.
   #
   @@hill_climb_stochastic = ->(opts) {
     climb_func         = opts[:climb_func]
