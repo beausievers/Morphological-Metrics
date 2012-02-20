@@ -13,20 +13,23 @@ In development. This is so pre-alpha. Don't even use this.
 Here's a list of things that needs to happen before you should use this:
 
 Functionality
-    - Confirm that everything described in MM is implemented.
-        + What's missing?
     - Should this library have these search functions, or should they be
       split into another library? Is there a standard for doing this in
       Ruby already?
+    - Angle. What the hell to do with angle. Combinatorial angle?
+    - Implement a wider variety of possibilities for adjacency functions, esp.
+      the notion of a variable adjacency interval.
 
 Test coverage
-    - Tests for all of the metrics supplied in MM.
+    - Additional tests for all of the metrics supplied in MM.
     - Tests for important utility functions.
     - Test for multimetrics.
     - Test search functions.
 
 Documentation
-    - Code should work with RDoc.
+    - Improved comments
+        + Better description of what different scaling methods do in different
+          contexts.
 
 Example code
     - Should have a brief tutorial based on MM which walks through the
@@ -35,3 +38,6 @@ Example code
 
 License
     - Decide what license to use.
+
+Code cleanliness
+    - Think about this
