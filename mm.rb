@@ -80,6 +80,65 @@
 #  > MM.dist_ocm(m,_)
 #  => 0.5499999999999999
 #
+module NArrayX
+  def include? r
+    for i in 0...self.shape[1]
+      (self[true,i] == r) ? (return true) : false
+    end
+    false
+  end
+  
+  def to_f
+    NArray.float[*self.collect{|x| x.to_f}]
+  end
+  
+  def map &b
+    self.collect &b
+  end
+  
+  def map! &b
+    self.collect! &b
+  end
+  
+  def each_dim dim
+    a = Array.new(self.dim, true)
+    for i in 0...self.shape[dim]
+      a[dim] = i
+      yield HD::Ratio[*self[*a]]
+    end
+    self
+  end
+  
+  def each_ratio
+    a = Array.new(2, true)
+    for i in 0...self.shape[1]
+      a[1] = i
+      yield HD::Ratio[*self[*a]]
+    end
+    self
+  end
+  
+  def collect_ratios
+    m = self.dup.fill! 0
+    for i in 0...self.shape[1]
+      m[true,i] = yield HD::Ratio[*self[true,i]]
+    end
+    m
+  end
+  
+  def ordered_2_combinations
+    combinations = []
+    for i in 0...self.shape[1]
+      for j in (i+1)...self.shape[1]
+        combinations << NArray[HD::Ratio[*self[true,i]],HD::Ratio[*self[true,j]]]
+      end
+    end
+    combinations
+  end
+  
+  # def uniq (won't work on this yet)
+end
+
 module MM
   include Math
   require 'narray'
@@ -221,13 +280,17 @@ module MM
       config = self::DistConfig.new
       config.intra_delta = :-.to_proc
     end
+    
+    # Extend our NArrays with a few additional methods
+    m.extend NArrayX
+    n.extend NArrayX
+    
+    # This returns normal Ruby arrays of NArrays
+    m_combo = m.ordered_2_combinations
+    n_combo = n.ordered_2_combinations
 
-    # This converts to normal Ruby arrays, and so will be slow.
-    m_combo = self.ordered_2_combinations(m.to_a)
-    n_combo = self.ordered_2_combinations(n.to_a)
-
-    m_sgn = NArray.to_na(m_combo.map { |a, b| self.sgn_single(config.intra_delta.call(a,b)) })
-    n_sgn = NArray.to_na(n_combo.map { |a, b| self.sgn_single(config.intra_delta.call(a,b)) })
+    m_sgn = m_combo.collect { |a, b| self.sgn_single(config.intra_delta.call(a,b)) }
+    n_sgn = n_combo.collect { |a, b| self.sgn_single(config.intra_delta.call(a,b)) }
 
     m_sgn.ne(n_sgn).sum.to_f / m_combo.size
   end
@@ -253,9 +316,13 @@ module MM
       config.intra_delta = :-.to_proc
     end
 
-    # This converts to normal Ruby arrays, and so will be slow.
-    m_combo = self.ordered_2_combinations(m.to_a)
-    n_combo = self.ordered_2_combinations(n.to_a)
+     # Extend our NArrays with a few additional methods
+      m.extend NArrayX
+      n.extend NArrayX
+
+      # This returns normal Ruby arrays of NArrays
+      m_combo = m.ordered_2_combinations
+      n_combo = n.ordered_2_combinations
 
     m_sgn_map = m_combo.map { |a, b| self.sgn_single(config.intra_delta.call(a,b)) }
     n_sgn_map = n_combo.map { |a, b| self.sgn_single(config.intra_delta.call(a,b)) }
@@ -286,12 +353,19 @@ module MM
   def self.get_mag_metric(style = :combinatorial, post_proc)
     ->(m, n, config = self::DistConfig.new) {
       if style == :combinatorial
-        m_combo = self.ordered_2_combinations(m.to_a)
-        n_combo = self.ordered_2_combinations(n.to_a)
-        m_diff = NArray.to_na(m_combo.map { |a,b| config.intra_delta.call(a,b) })
-        n_diff = NArray.to_na(n_combo.map { |a,b| config.intra_delta.call(a,b) })
-        #puts "m_combo: #{m_combo.to_a.to_s}"
-        #puts "n_combo: #{n_combo.to_a.to_s}"
+       # Extend our NArrays with a few additional methods
+        m.extend NArrayX
+        n.extend NArrayX
+        # This returns normal Ruby arrays of NArrays
+        m_combo = m.ordered_2_combinations
+        n_combo = n.ordered_2_combinations
+        # This is probably pretty slow
+        mapper = ->(a){config.intra_delta.call(a[true,0],a[true,1])}
+        
+        m_diff = NArray.to_na(m_combo.map &mapper)
+        n_diff = NArray.to_na(n_combo.map &mapper)
+        # puts "m_combo: #{m_combo.to_a.to_s}"
+        # puts "n_combo: #{n_combo.to_a.to_s}"
       elsif style == :linear
         m_combo, n_combo = nil, nil
         m_diff = self.vector_delta(m, config.order, config.intra_delta, config.int_func)
@@ -462,7 +536,7 @@ module MM
   # itself a multimetric.
   #
   def self.get_multimetric(metrics)
-    ->(m, n) {  # A config argument would be meaningless.
+    ->(m, n, *more) {  # A config argument would be meaningless.
       top = 0
       bottom = 0
       metrics.each do |metric_hash| #|metric, config = self::DistConfig.new, weight = 1|
@@ -554,10 +628,14 @@ module MM
 
     compare = int_func.call(m)
     # If the compare vector is shorter than m, we assume
-    # it is structure such that the missing element at the 
+    # it is structured such that the missing element at the 
     # end of m is incorporated somehow into the compare vector.
     # E.g. for the default m[i] - m[i+1] approach described in self.
-    res = delta.call(m[0...compare.total], compare)
+    if compare.respond_to? :shape
+      res = delta.call(m[true,0...compare.shape[1]], compare)
+    else
+      res = delta.call(m[0...compare.total], compare)
+    end
     if order == 1
       return res
     else
@@ -637,6 +715,8 @@ module MM
     end
     combinations
   end
+  
+  # TODO: Make the above method work for one dimension on an NArray, so that we don't have to convert back and forth
 
   #
   # A hash containing delta functions. These functions are for calculating the
@@ -886,13 +966,13 @@ module MM
     allow_duplicates    = opts[:allow_duplicates]    || true
     search_func = opts[:search_func] || MM.hill_climb_stochastic
     search_opts = opts[:search_opts] || {}
-    print_states = opts[:print_stats] || false
+    print_stats = opts[:print_stats] || false
     
     total_distance = (config == :none) ? metric.call(v1, v2) : metric.call(v1, v2, config)
     total_euclidean_distance = MM.euclidean.call(v1,v2)
     inc = total_distance.to_f / steps
     
-    puts "total_distance: #{total_distance} inc: #{inc}"
+    # puts "total_distance: #{total_distance} inc: #{inc}"
     
     path = [v1]
     steps.times do |step|
@@ -904,7 +984,7 @@ module MM
         target_v2 = total_distance - (inc * i)
         (target_v1 - dist_v1).abs + (target_v2 - dist_v2).abs + (euclidean_tightness * MM.euclidean.call(test_point, MM.interpolate(v1, v2, i.to_f / steps)))
       }
-      #puts "\nNew hill climb, starting from #{path[-1].to_a.to_s}"
+      puts "\nNew hill climb, starting from #{path[-1].to_a.to_s}"
       search_opts[:climb_func] = climb_func
       search_opts[:start_vector] = path[-1]
 
@@ -1045,6 +1125,8 @@ module MM
     max_iterations     = opts[:max_iterations]     || 1000
     return_full_path   = opts[:return_full_path]   || false
     step_size_subtract = opts[:step_size_subtract]
+    step_size_modifier = opts[:step_size_modifier] || :*.to_proc
+    new_point_modifier = opts[:new_point_modifier] || :+.to_proc
 
     start_vector = start_vector.to_f
     dimensions = start_vector.total
@@ -1058,11 +1140,11 @@ module MM
       current_result = climb_func.call(current_point)
       # Generate a collection of test points with scores: [point, score]
       test_points = []
-      (dimensions * 5).times do |j| # num test points = num dimensions * 3
+      (dimensions * 5).times do |j| # num test points = num dimensions * 5
         # pick a deviation for each dimension
         deviation = NArray.float(dimensions)
-        dimensions.times { |d| deviation[d] = candidates.sample * step_size }
-        new_point = current_point + deviation
+        dimensions.times { |d| deviation[d] = step_size_modifier.call(candidates.sample, step_size) }
+        new_point = new_point_modifier.call(current_point, deviation)
         test_points << [new_point, climb_func.call(new_point)]
       end
       
@@ -1096,6 +1178,7 @@ module MM
     return path if return_full_path
     current_point
   }
+  
   
   
 end
