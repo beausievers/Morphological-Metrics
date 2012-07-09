@@ -107,7 +107,8 @@ module MM
     #               constant docs for details. Default: INTERVAL_FUNCTIONS[:plus_one]
     # [+:ic_calc+] The interval class calculation proc. See the IC_FUNCTIONS
     #              constant docs for details. Default: IC_FUNCTIONS[:mod]
-    # [+:mod+] The modulus of the numbering system. Default: 12
+    # [+:mod+] The modulus of the numbering system. Used only in interval class
+    #          calculations. Default: 12
     #
     def initialize(opts = {})
       @scale       = opts[:scale]       || :absolute
@@ -788,6 +789,23 @@ module MM
     end
     path
   end
+  
+  def self.interpolate_steps(v1, v2, num_steps)
+    raise "Number of steps must be > 1" if num_steps <= 0.0
+    return [v1, v2] if num_steps == 2
+    
+    interval = 1.0 / (num_steps - 1)
+    current_percent = interval
+    path = [v1]
+    
+    (num_steps - 2).times do |step|
+      path << self.interpolate(v1, v2, current_percent)
+      current_percent += interval
+    end
+    
+    path << v2
+    path
+  end
 
   #######################################################################
   #
@@ -886,7 +904,7 @@ module MM
     allow_duplicates    = opts[:allow_duplicates]    || true
     search_func = opts[:search_func] || MM.hill_climb_stochastic
     search_opts = opts[:search_opts] || {}
-    print_states = opts[:print_stats] || false
+    print_stats = opts[:print_stats] || false
     
     total_distance = (config == :none) ? metric.call(v1, v2) : metric.call(v1, v2, config)
     total_euclidean_distance = MM.euclidean.call(v1,v2)
