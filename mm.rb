@@ -790,6 +790,9 @@ module MM
     path
   end
   
+  # Get an array of points along a continuous interpolation between v1 and v2
+  # with a sampling interval determined by the total desired number of points.
+  # This method will always include the starting and ending points.
   def self.interpolate_steps(v1, v2, num_steps)
     raise "Number of steps must be > 1" if num_steps <= 0.0
     return [v1, v2] if num_steps == 2
