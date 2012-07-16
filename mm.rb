@@ -809,6 +809,38 @@ module MM
     path << v2
     path
   end
+  
+  # Upsample a vector, adding members using linear interpolation.
+  def self.upsample(v1, new_size)
+    raise "Upsample can't downsample" if new_size <= v1.size
+
+    samples_to_insert = new_size - v1.size
+    possible_insertion_indexes = v1.size - 2
+    samples_per_insertion_index = samples_to_insert / (possible_insertion_indexes + 1.0)
+
+    count      = 0.0
+    prev_count = 0.0    # avoids an erroneous hit when i == 0
+    hits       = 0
+    new_vector = []
+
+    0.upto(possible_insertion_indexes) do |i|
+      count += samples_per_insertion_index
+
+      # pretty into this next bit check it out
+      int_boundaries_crossed = ((count - prev_count) + (prev_count % 1.0)).floor
+
+      if int_boundaries_crossed >= 1
+        hits += int_boundaries_crossed
+        # next line leaves off the last step of the interpolation
+        # because it will be added during the next loop-through
+        new_vector.concat(self.interpolate_steps(v1[i], v1[i + 1], 2 + int_boundaries_crossed)[0..-2])
+      else
+        new_vector << v1[i]
+      end
+      prev_count = count
+    end
+    new_vector << v1[-1]    # add the last member (which is not an insertion point)
+  end
 
   #######################################################################
   #
