@@ -812,23 +812,23 @@ module MM
   
   # Upsample a vector, adding members using linear interpolation.
   def self.upsample(v1, new_size)
-    raise "Upsample can't downsample" if new_size <= v1.size
+    return v1 if v1.size == new_size
+    raise "Upsample can't downsample" if new_size < v1.size
 
     samples_to_insert = new_size - v1.size
     possible_insertion_indexes = v1.size - 2
-    samples_per_insertion_index = samples_to_insert / (possible_insertion_indexes + 1.0)
-
-    count      = 0.0
-    prev_count = 0.0    # avoids an erroneous hit when i == 0
+    samples_per_insertion_index = Rational(samples_to_insert, possible_insertion_indexes + 1.0)
+    
+    count      = Rational(0,1)
+    prev_count = Rational(0,1)
     hits       = 0
     new_vector = []
-
+    
     0.upto(possible_insertion_indexes) do |i|
       count += samples_per_insertion_index
 
-      # pretty into this next bit check it out
-      int_boundaries_crossed = ((count - prev_count) + (prev_count % 1.0)).floor
-
+      int_boundaries_crossed = count.floor - prev_count.floor
+      
       if int_boundaries_crossed >= 1
         hits += int_boundaries_crossed
         # next line leaves off the last step of the interpolation
