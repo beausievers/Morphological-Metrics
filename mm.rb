@@ -839,7 +839,7 @@ module MM
       end
       prev_count = count
     end
-    new_vector << v1[-1]    # add the last member (which is not an insertion point)
+    NArray.to_na(new_vector << v1[-1])    # add the last member (which is not an insertion point)
   end
 
   #######################################################################
