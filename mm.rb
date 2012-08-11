@@ -89,7 +89,11 @@ module NArrayX
   end
   
   def to_f
-    NArray.float[*self.collect{|x| x.to_f}]
+    p = NArray.float(*self.shape)
+    for i in 0...self.total
+      p[i] = self[i].to_f
+    end
+    p
   end
   
   def map &b
@@ -126,14 +130,32 @@ module NArrayX
     m
   end
   
+  def mul_ratios other
+    (self.shape != other.shape) ? (raise ArgumentError.new("Supplied an array of shape #{other.shape} to mul_ratios")) : false
+    m = self.dup.fill! 0
+    for i in 0...self.shape[1]
+      m[true,i] = HD::Ratio[*other[true,i]] * HD::Ratio[*self[true,i]]
+    end
+    m
+  end
+  
   def ordered_2_combinations
     combinations = []
-    for i in 0...self.shape[1]
-      for j in (i+1)...self.shape[1]
-        combinations << NArray[HD::Ratio[*self[true,i]],HD::Ratio[*self[true,j]]]
+    if self.shape[1] != nil
+      for i in 0...self.shape[1]
+        for j in (i+1)...self.shape[1]
+          combinations << NArray[HD::Ratio[*self[true,i]],HD::Ratio[*self[true,j]]]
+        end
+      end
+      return combinations
+    end
+    
+    (0...self.length).each do |i|
+      ((i + 1)...self.size).each do |j|
+        combinations << [self[i], self[j]]
       end
     end
-    combinations
+    return combinations
   end
   
   # def uniq (won't work on this yet)
@@ -289,8 +311,8 @@ module MM
     m_combo = m.ordered_2_combinations
     n_combo = n.ordered_2_combinations
 
-    m_sgn = m_combo.collect { |a, b| self.sgn_single(config.intra_delta.call(a,b)) }
-    n_sgn = n_combo.collect { |a, b| self.sgn_single(config.intra_delta.call(a,b)) }
+    m_sgn = NArray.to_na(m_combo.collect { |a, b| self.sgn_single(config.intra_delta.call(a,b)) })
+    n_sgn = NArray.to_na(n_combo.collect { |a, b| self.sgn_single(config.intra_delta.call(a,b)) })
 
     m_sgn.ne(n_sgn).sum.to_f / m_combo.size
   end
@@ -367,6 +389,9 @@ module MM
         # puts "m_combo: #{m_combo.to_a.to_s}"
         # puts "n_combo: #{n_combo.to_a.to_s}"
       elsif style == :linear
+        # Extend our NArrays with a few additional methods
+        m.extend NArrayX
+        n.extend NArrayX
         m_combo, n_combo = nil, nil
         m_diff = self.vector_delta(m, config.order, config.intra_delta, config.int_func)
         n_diff = self.vector_delta(n, config.order, config.intra_delta, config.int_func)
@@ -375,18 +400,26 @@ module MM
       #puts "m_diff: #{m_diff.to_a.to_s}"
       #puts "n_diff: #{n_diff.to_a.to_s}"
 
-      scale_factor, inner_scale_m, inner_scale_n = 1, 1, 1
-
+      scale_proc = ->(m_diff, n_diff) {return 1}
+      # Constructs a Proc which returns the scale_factor, inner_scale_m, and inner_scale_n
       if config.scale == :absolute
-        the_max = [m_diff.max, n_diff.max].max 
-        scale_factor = the_max unless the_max == 0
+        scale_proc = ->(m_diff, n_diff) {
+          the_max = [m_diff.max, n_diff.max].max
+          return [(the_max == 0 ? 1 : the_max), 1, 1]
+        }
       elsif config.scale == :relative
-        inner_scale_m = m_diff.max unless m_diff.max == 0
-        inner_scale_n = n_diff.max unless n_diff.max == 0
+        scale_proc = ->(m_diff, n_diff) {
+          return [1, (m_diff.max == 0 ? 1 : m_diff.max), (n_diff.max == 0 ? 1 : n_diff.max)]
+        }
       elsif config.scale == :maxint_squared
-        root_of_squared_differences = ((m_diff - n_diff)**2)**0.5
-        scale_factor = root_of_squared_differences.max unless root_of_squared_differences.max == 0
-      end
+        scale_proc = ->(m_diff, n_diff) {
+          root_of_squared_differences = ((m_diff - n_diff)**2)**0.5
+          [(root_of_squared_differences.max == 0 ? 1 : root_of_squared_differences.max), 1, 1]
+        }
+      elsif config.scale.is_a? Proc 
+        scale_proc = config.scale
+      end   
+      scale_factor, inner_scale_m, inner_scale_n = scale_proc.call(m_diff, n_diff)
 
       post_proc.call(config.intra_delta, config.inter_delta, m_diff, n_diff, m_combo, n_combo, 
                      inner_scale_m, inner_scale_n, scale_factor)
@@ -631,7 +664,7 @@ module MM
     # it is structured such that the missing element at the 
     # end of m is incorporated somehow into the compare vector.
     # E.g. for the default m[i] - m[i+1] approach described in self.
-    if compare.respond_to? :shape
+    if (compare.respond_to? :shape) && (compare.shape.size > 1)
       res = delta.call(m[true,0...compare.shape[1]], compare)
     else
       res = delta.call(m[0...compare.total], compare)
@@ -738,8 +771,22 @@ module MM
   #
   DELTA_FUNCTIONS = Hash[
     :abs_diff => lambda { |a,b| (a - b).abs },
+    :longest_vector_abs_diff => lambda {|a,b| 
+      if a.size > b.size
+        return (a[0...b.shape[-1]] - b).abs
+      else
+        return (a - b[0...a.shape[-1]]).abs
+      end
+      },
     :raw_diff => :-.to_proc,
     :ratio => lambda { |a, b| a / b.to_f },
+    :hd_ratio => lambda {|a, b| 
+      res = NArray.int(b.total).reshape(2,b.total/2)
+      res.shape[1].times do |i|
+        res[true,i] = HD.r(*a[true,i]) / HD.r(*b[true,i])
+      end
+      return res
+    },
     :squared_difference => lambda { |a, b| (a - b)**2 },
     :root_of_squared_difference => lambda { |a, b| ((a - b)**2)**0.5 },
     :huron => ->(a, b) {
@@ -817,6 +864,9 @@ module MM
   #
   # Question: Should scaling be turned off here by default?
   # Additional question: What does this even mean?
+  
+  # ACS: scaling would seem to need to be either off or normalized to a global max, since we're talking about wanting to view things in a certain space common to three different angles.
+  # Seems that we should be talking about Hilbert Space?
   #
   def self.angle(v1, v2, v3 = nil, dist_func = nil, config = self::DistConfig.new)
     v3 = NArray.int(v1.total).fill!(0) if v3.nil?
