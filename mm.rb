@@ -381,8 +381,17 @@ module MM
         # This returns normal Ruby arrays of NArrays
         m_combo = m.ordered_2_combinations
         n_combo = n.ordered_2_combinations
+        
         # This is probably pretty slow
-        mapper = ->(a){config.intra_delta.call(a[true,0],a[true,1])}
+        if m.shape.size == 2
+          mapper = ->(a){config.intra_delta.call(a[true,0],a[true,1])}
+        elsif m.shape.size == 1
+          mapper = ->(a){config.intra_delta.call(a[0], a[1])}
+        end
+        
+        # Legacy code
+        # m_diff = NArray.to_na(m_combo.map { |a,b| config.intra_delta.call(a,b) })
+        # n_diff = NArray.to_na(n_combo.map { |a,b| config.intra_delta.call(a,b) })
         
         m_diff = NArray.to_na(m_combo.map &mapper)
         n_diff = NArray.to_na(n_combo.map &mapper)
@@ -400,7 +409,7 @@ module MM
       #puts "m_diff: #{m_diff.to_a.to_s}"
       #puts "n_diff: #{n_diff.to_a.to_s}"
 
-      scale_proc = ->(m_diff, n_diff) {return 1}
+      scale_proc = ->(m_diff, n_diff) {return [1, 1, 1]}
       # Constructs a Proc which returns the scale_factor, inner_scale_m, and inner_scale_n
       if config.scale == :absolute
         scale_proc = ->(m_diff, n_diff) {
@@ -415,6 +424,10 @@ module MM
         scale_proc = ->(m_diff, n_diff) {
           root_of_squared_differences = ((m_diff - n_diff)**2)**0.5
           [(root_of_squared_differences.max == 0 ? 1 : root_of_squared_differences.max), 1, 1]
+        }
+      elsif config.scale == :none
+        scale_proc = ->(m_diff, n_diff) {
+          [1.0, 1.0, 1.0]
         }
       elsif config.scale.is_a? Proc 
         scale_proc = config.scale
@@ -659,6 +672,8 @@ module MM
     delta = MM::DELTA_FUNCTIONS[:abs_diff] if delta.nil?
     int_func = MM::INTERVAL_FUNCTIONS[:plus_one] if int_func.nil?
 
+    # Necessary so that the rev works
+    (m.dim == 1) ? m = NVector[*m] : false
     compare = int_func.call(m)
     # If the compare vector is shorter than m, we assume
     # it is structured such that the missing element at the 
