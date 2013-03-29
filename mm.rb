@@ -80,6 +80,14 @@
 #  > MM.dist_ocm(m,_)
 #  => 0.5499999999999999
 #
+#
+#  Some current problems:
+#    - Right now MM works with Numeric values only. We want it to work with anything.
+#    - Related issue: Contour is currently based on the - operator when it should based 
+#      on the <=> operator.
+#    - The ordered 2-combinations function only operates on one dimension.
+#
+#      
 module MM
   include Math
   require 'narray'
