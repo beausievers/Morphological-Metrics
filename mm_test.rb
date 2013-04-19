@@ -90,6 +90,39 @@ class MMTest < Test::Unit::TestCase
     n = NArray[7,6,4,9,8,1]
     assert_in_delta(0.2666, MM.ucd.call(m,n), 0.0001)    
   end
+	
+	###################
+	# Nesting Metrics 
+	#
+	# Ensure that metrics can be used as delta functions for other metrics
+	# TODO: Write tests to every combination of metric and intra/inter delta
+	# 
+	
+	# MM.dist_ocm
+	# - using the UCD as intra-delta
+	# - using abs_diff as inter_delta
+	def test_ucd_as_intra_delta
+		# Drawn from MM, p. 315
+		q = NArray[5,3,7,6]
+		r = NArray[2,1,2,1]
+		s = NArray[8,3,5,4]
+		# Setting up two different orderings of the intervals
+		m = NArray[q, r, s]
+		n = NArray[r, s, q]
+		# Setting up the OCD intra_delta with hard-coded scaling
+		ocd_proc = ->(a, b, config = MM::DistConfig.new(:scale => :relative)) do
+			MM.dist_ocd(a, b, config)
+		end
+		# Expected results:
+		# Using the OCD as intra_delta
+		# m_combos = [0.5, 0.33, 0.33]
+		# n_combos = [0.33, 0.5, 0.33]
+		# 
+		# (scaled over 0.5)
+		# OCM diffs = [0, 0.3333, 0.3333]
+		assert_in_delta(0.222, MM.dist_ocm(m, n, MM::DistConfig.new(:intra_delta => ocd_proc, :scale => :none)), 0.001)
+		assert_in_delta(0.666, MM.dist_ocm(m, n, MM::DistConfig.new(:intra_delta => ocd_proc, :scale => :absolute)), 0.001)
+	end
   
   def test_exhaustive
     opts = {:ranges => [(0..2), (0..2), (0..2)],
