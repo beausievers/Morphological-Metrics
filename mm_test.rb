@@ -1,6 +1,9 @@
 require './mm.rb'
 require 'test/unit'
 
+#
+# These tests are for the metrics themselves...
+#
 class MMTest < Test::Unit::TestCase
   
   def test_olm
@@ -87,5 +90,48 @@ class MMTest < Test::Unit::TestCase
     n = NArray[7,6,4,9,8,1]
     assert_in_delta(0.2666, MM.ucd.call(m,n), 0.0001)    
   end
+  
+  def test_exhaustive
+    opts = {:ranges => [(0..2), (0..2), (0..2)],
+            :incs   => [1, 1, 1],
+            :func   => ->(coord) {
+              coord == [1, 1, 1]
+            }
+           }
+            
+    res = {[0, 0, 0]=>false, [0, 0, 1]=>false, [0, 0, 2]=>false, [0, 1, 0]=>false, [0, 1, 1]=>false, [0, 1, 2]=>false, [0, 2, 0]=>false, [0, 2, 1]=>false, [0, 2, 2]=>false, [1, 0, 0]=>false, [1, 0, 1]=>false, [1, 0, 2]=>false, [1, 1, 0]=>false, [1, 1, 1]=>true, [1, 1, 2]=>false, [1, 2, 0]=>false, [1, 2, 1]=>false, [1, 2, 2]=>false, [2, 0, 0]=>false, [2, 0, 1]=>false, [2, 0, 2]=>false, [2, 1, 0]=>false, [2, 1, 1]=>false, [2, 1, 2]=>false, [2, 2, 0]=>false, [2, 2, 1]=>false, [2, 2, 2]=>false}
+    assert_equal(res, MM.exhaustive(opts))
+  end
+  
 end
 
+#
+# These tests are for helper functions, etc...
+#
+class MMHelperTest < Test::Unit::TestCase
+  def test_unfold_pvm
+    pvm0 = [[0, 1, 2], [0, 1, 2], [0, 1, 2]]
+    
+    res0 = [[0, 0, 0], [0, 0, 1], [0, 0, 2],
+            [0, 1, 0], [0, 1, 1], [0, 1, 2],
+            [0, 2, 0], [0, 2, 1], [0, 2, 2],
+                                           
+            [1, 0, 0], [1, 0, 1], [1, 0, 2],
+            [1, 1, 0], [1, 1, 1], [1, 1, 2],
+            [1, 2, 0], [1, 2, 1], [1, 2, 2],
+                                           
+            [2, 0, 0], [2, 0, 1], [2, 0, 2],
+            [2, 1, 0], [2, 1, 1], [2, 1, 2],
+            [2, 2, 0], [2, 2, 1], [2, 2, 2]]
+           
+    pvm1 = [[0,1]]
+    res1 = [[0],[1]]
+    
+    pvm2 = [[0,1],[0,1]]
+    res2 = [[0,0], [0,1], [1,0], [1,1]]
+           
+    assert_equal(res0, MM.unfold_pvm(pvm0))
+    assert_equal(res1, MM.unfold_pvm(pvm1))
+    assert_equal(res2, MM.unfold_pvm(pvm2))
+  end
+end
