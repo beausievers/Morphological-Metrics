@@ -862,6 +862,63 @@ module MM
     scale = r / ((deviates**2).sum)**0.5
     scale * deviates
   end
+  
+  #
+  # Given a proc and a range of a vector space, evaluate every coordinate in that
+  # range using the proc. Returns a hash using coordinate vectors as keys and
+  # return values from the proc as values.
+  #
+  def self.exhaustive(opts)
+    ranges = opts[:ranges] # ranges per dimension
+    incs   = opts[:incs]   # increments per dimension
+    func   = opts[:func]   # function to evaluate each coordinate
+    
+    raise ArgumentError, "opts[:ranges].size must equal opts[:incs].size" if (ranges.size != incs.size) 
+    
+    possible_value_matrix = []
+    
+    ranges.each_index {|i|
+      range = ranges[i]
+      inc   = incs[i]
+      
+      arr = []
+      range.step(inc) {|x| arr << x}
+      possible_value_matrix << arr
+    }
+    
+    all_coords = unfold_pvm(possible_value_matrix)
+    results = {}
+    all_coords.each do |coord|
+      results[coord] = func.call(coord)
+    end
+    results
+  end
+  
+  # Helper function for self.exhaustive search above.
+  # Unfold the possible value matrix.
+  # I.e., get all the possible combinations of coordinates without repetition.
+  def self.unfold_pvm(pvm, partial_coord = [])
+    coords = []
+    if pvm.length > 1
+      bottom_dim = pvm[0]
+      new_pvm = pvm[1..-1]
+      bottom_dim.each {|dim_value|
+        new_partial_coord = partial_coord.clone
+        new_partial_coord << dim_value
+        coords.concat(unfold_pvm(new_pvm, new_partial_coord))
+      }
+    elsif pvm.length == 1
+      new_coords = []
+      bottom_dim = pvm[0]
+      bottom_dim.each {|dim_value|
+        new_coord = partial_coord.clone
+        new_coord << dim_value
+        new_coords << new_coord
+      }
+      return new_coords
+    end
+    coords
+  end
 
   #
   # Find v2 a given distance d from v1 using a given metric and search algorithm.
