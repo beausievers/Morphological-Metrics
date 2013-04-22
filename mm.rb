@@ -89,6 +89,7 @@
 #    - Would like to have a nice function for generating N-dimensional spaces with 
 #      several local minima and maxima for testing relative performance of search 
 #      algorithms.
+#    - Search functions should live in their own separate library.
 #
 #      
 module MM
