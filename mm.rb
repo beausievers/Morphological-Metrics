@@ -864,14 +864,25 @@ module MM
   end
   
   #
-  # Given a proc and a range of a vector space, evaluate every coordinate in that
-  # range using the proc. Returns a hash using coordinate vectors as keys and
+  # Given an array of coordinates and a proc, evaluate every coordinate 
+  # using the proc. Returns a hash using coordinate vectors as keys and
   # return values from the proc as values.
   #
   def self.exhaustive(opts)
+    coords = opts[:coords] # ranges per dimension
+    func   = opts[:func]   # function to evaluate each coordinate
+
+    results = {}
+    
+    coords.each do |coord|
+      results[coord] = func.call(coord)
+    end
+    results
+  end
+  
+  def self.generate_coords(opts)
     ranges = opts[:ranges] # ranges per dimension
     incs   = opts[:incs]   # increments per dimension
-    func   = opts[:func]   # function to evaluate each coordinate
     
     raise ArgumentError, "opts[:ranges].size must equal opts[:incs].size" if (ranges.size != incs.size) 
     
@@ -886,15 +897,10 @@ module MM
       possible_value_matrix << arr
     }
     
-    all_coords = unfold_pvm(possible_value_matrix)
-    results = {}
-    all_coords.each do |coord|
-      results[coord] = func.call(coord)
-    end
-    results
+    unfold_pvm(possible_value_matrix)
   end
   
-  # Helper function for self.exhaustive search above.
+  # Helper function for self.generate_coordinates above.
   # Unfold the possible value matrix.
   # I.e., get all the possible combinations of coordinates without repetition.
   def self.unfold_pvm(pvm, partial_coord = [])

@@ -125,15 +125,23 @@ class MMTest < Test::Unit::TestCase
   end
   
   def test_exhaustive
-    opts = {:ranges => [(0..2), (0..2), (0..2)],
-            :incs   => [1, 1, 1],
-            :func   => ->(coord) {
-              coord == [1, 1, 1]
-            }
-           }
+    opts_gen = {
+      :ranges => [(0..2), (0..2), (0..2)],
+      :incs   => [1, 1, 1]
+    }
+    
+    coords = MM.generate_coords(opts_gen)       
+           
+    opts_search = {
+      :coords => coords, 
+      :func   => ->(coord) {
+        coord == [1, 1, 1]
+      }
+    }
             
     res = {[0, 0, 0]=>false, [0, 0, 1]=>false, [0, 0, 2]=>false, [0, 1, 0]=>false, [0, 1, 1]=>false, [0, 1, 2]=>false, [0, 2, 0]=>false, [0, 2, 1]=>false, [0, 2, 2]=>false, [1, 0, 0]=>false, [1, 0, 1]=>false, [1, 0, 2]=>false, [1, 1, 0]=>false, [1, 1, 1]=>true, [1, 1, 2]=>false, [1, 2, 0]=>false, [1, 2, 1]=>false, [1, 2, 2]=>false, [2, 0, 0]=>false, [2, 0, 1]=>false, [2, 0, 2]=>false, [2, 1, 0]=>false, [2, 1, 1]=>false, [2, 1, 2]=>false, [2, 2, 0]=>false, [2, 2, 1]=>false, [2, 2, 2]=>false}
-    assert_equal(res, MM.exhaustive(opts))
+    
+    assert_equal(res, MM.exhaustive(opts_search))
   end
   
 end
