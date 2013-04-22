@@ -86,6 +86,9 @@
 #    - Related issue: Contour is currently based on the - operator when it should based 
 #      on the <=> operator.
 #    - The ordered 2-combinations function only operates on one dimension.
+#    - Would like to have a nice function for generating N-dimensional spaces with 
+#      several local minima and maxima for testing relative performance of search 
+#      algorithms.
 #
 #      
 module MM
