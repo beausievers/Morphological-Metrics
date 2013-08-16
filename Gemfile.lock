@@ -1,0 +1,12 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.0.6)
+    narray (0.6.0.8)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  minitest
+  narray
