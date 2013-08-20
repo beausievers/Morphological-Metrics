@@ -95,8 +95,8 @@
 
 $: << File.expand_path(File.dirname(__FILE__) + "/../lib")
 
-require 'mm/mm_helpers.rb'
-require 'mm/mm_dist_config.rb'
+require 'mm/helpers.rb'
+require 'mm/dist_config.rb'
 
 module MM
   include Math
