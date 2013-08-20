@@ -1,6 +1,6 @@
-require_relative '../mm.rb'
-
+require 'spec_helper.rb'
 require 'minitest/autorun'
+require 'mm.rb'
 
 describe MM::DistConfig do
   describe "with no options passed" do
