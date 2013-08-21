@@ -3,12 +3,12 @@ require 'minitest/autorun'
 require 'mm'
 
 describe MM do
-  let(:m) {NArray[1,5,12,2,9,6]}
-  let(:n) {NArray[7,6,4,9,8,1]}
+  let(:m) {NArray[1,5,12,2,9,6]} # first point
+  let(:n) {NArray[7,6,4,9,8,1]} # second point
+  let(:o) {NArray[5,3,6,1,4,3]} # third point for testing triangle inequality
+  let(:dist_config) {nil}
   
   describe "direction metrics" do
-    let(:dist_config) {nil}
-    
     describe "OLD Metric" do
       let(:subject) {MM.old}
       let(:expected) {0.8}
@@ -58,63 +58,75 @@ describe MM do
     
     describe "OCM Metric" do
       let(:subject) {MM.ocm}
+      
       describe "with scale: none" do
         let(:expected) {3.6}
         let(:dist_config) {MM::DistConfig.new :scale => :none}
+        
         it_behaves_like "a metric"
       end
       
       describe "with scale: absolute" do
         let(:expected) {0.327}
         let(:dist_config) {MM::DistConfig.new :scale => :absolute}
+        
         it_behaves_like "a metric"
       end
       
       describe "with scale: relative" do
         let(:expected) {0.366}
         let(:dist_config) {MM::DistConfig.new :scale => :relative}
+        
         it_behaves_like "a metric"
       end
     end
     
     describe "ULM Metric" do
       let(:subject) {MM.ulm}
+      
       describe "with scale: none" do
         let(:expected) {3.0}
         let(:dist_config) {MM::DistConfig.new :scale => :none}
+        
         it_behaves_like "a metric"
       end
       
       describe "with scale: absolute" do
         let(:expected) {0.3}
         let(:dist_config) {MM::DistConfig.new :scale => :absolute}
+        
         it_behaves_like "a metric"
       end
       
       describe "with scale: relative" do
         let(:expected) {0.1628}
         let(:dist_config) {MM::DistConfig.new :scale => :relative}
+        
         it_behaves_like "a metric"
       end
     end
     
     describe "UCM Metric" do
       let(:subject) {MM.ucm}
+      
       describe "with scale: none" do
         let(:expected) {1.6}
         let(:dist_config) {MM::DistConfig.new :scale => :none}
+        
         it_behaves_like "a metric"
       end
       
       describe "with scale: absolute" do
         let(:expected) {0.14545}
         let(:dist_config) {MM::DistConfig.new :scale => :absolute}
+        
         it_behaves_like "a metric"
       end
       
       describe "with scale: relative" do
         let(:expected) {0.025}
         let(:dist_config) {MM::DistConfig.new :scale => :relative}
+        
         it_behaves_like "a metric"
       end
     end

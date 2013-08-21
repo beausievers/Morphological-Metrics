@@ -25,13 +25,11 @@ class Minitest::Spec
   
   # Implementing shared expectations for all metrics
   shared_examples_for "a metric" do
-    
     it "is transitive" do
       subject.call(m, n, dist_config).must_equal subject.call(n, m, dist_config)
     end
     
     it "is the shortest distance between two points" do
-      o = NArray[5,3,6,1,4,3]
       subject.call(m, n, dist_config).must_be :<=, (subject.call(m, o, dist_config) + subject.call(o, n, dist_config))
     end
     
