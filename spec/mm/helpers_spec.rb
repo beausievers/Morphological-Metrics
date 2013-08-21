@@ -1,6 +1,6 @@
-require 'spec_helper.rb'
+require 'spec_helper'
 require 'minitest/autorun'
-require 'mm.rb'
+require 'mm'
 
 describe MM do
   let(:m) { NArray[2,5,6,1] }
