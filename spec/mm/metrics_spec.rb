@@ -131,4 +131,19 @@ describe MM do
       end
     end
   end
+  
+  describe "euclidean metric" do
+    let(:subject) {MM.euclidean}
+    let(:expected) {13.27}
+    
+    it_behaves_like "a metric"
+  end
+  
+  describe "ic metric" do
+    let(:subject) {MM.ic}
+    # I'm not sure this is the correct result
+    let(:expected) {0.7666}
+    
+    it_behaves_like "a metric"
+  end
 end

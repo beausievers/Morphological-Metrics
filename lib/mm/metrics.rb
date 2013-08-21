@@ -313,16 +313,21 @@ module MM
   #
   # TODO: Can this be written in terms of the OLM above?
   #
-  @@ic = ->(m, n, config = self::DistConfig.new) do
+  @@ic = ->(m, n, config = nil) do
     scale_factor = 1
-    if scale
-      scale_factor = mod / 2
+    
+    if config.nil? 
+      config = self::DistConfig.new
+    end
+    
+    if config.scale
+      scale_factor = config.mod / 2
     end
 
     m_diff = self.vector_delta(m, 1, config.intra_delta)
     n_diff = self.vector_delta(n, 1, config.intra_delta)
 
-    inter_diff = config.inter_delta.call(m_diff, n_diff).collect {|x| config.ic_calc.call(x, mod)} 
+    inter_diff = config.inter_delta.call(m_diff, n_diff).collect {|x| config.ic_calc.call(x, config.mod)} 
     inter_diff.sum / (inter_diff.total * scale_factor).to_f
   end
 
